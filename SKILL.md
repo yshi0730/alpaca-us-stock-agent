@@ -128,27 +128,34 @@ These run **without any user interaction** once approved. The agent logs every e
 
 ### Gateway Pairing and Cron Wakeups
 
-This agent must pair with the OpenClaw gateway before claiming autonomous monitoring is active. Pairing is considered healthy only when scheduled cron jobs can call the MCP tool `alpaca_cron_tick`.
+This agent must pair with the OpenClaw Gateway before claiming autonomous monitoring is active. OpenClaw cron is a Gateway scheduler created with `openclaw cron add`; it wakes the agent with a message. The cron message should instruct the agent to call the MCP tool `alpaca_cron_tick`.
 
-Required cron entrypoint:
+Required setup tool:
 
 ```json
 {
-  "tool": "alpaca_cron_tick",
+  "tool": "alpaca_setup_gateway_cron",
   "arguments": {
-    "mode": "risk_check"
+    "risk_check_interval_minutes": 1,
+    "timezone": "America/New_York"
   }
 }
 ```
 
-High-frequency operating rules:
-- During market hours, schedule `alpaca_cron_tick` every 1-5 minutes for reminders, risk checks, strategy checks, and missed-alert recovery.
-- For active trading or crypto monitoring, also run `alpaca_start_monitor` with `cron_interval_seconds` between 15 and 60 seconds.
-- Pre-market cron should call `alpaca_cron_tick` with `mode="premarket"` and generate a concise briefing.
-- Post-market cron should call `alpaca_cron_tick` with `mode="postmarket"` and record a closing snapshot.
-- If gateway pairing is missing or cron cannot call `alpaca_cron_tick`, tell the user automation is not fully active and fix pairing before relying on unattended trading.
+Required cron wakeup message:
 
-Do not rely only on chat-session memory for scheduled reminders. Cron wakeups must use `alpaca_cron_tick` so the gateway has a stable tool target.
+```text
+Run alpaca_cron_tick with mode='risk_check'. Check positions, alerts, guardrails, and active strategy status.
+```
+
+High-frequency operating rules:
+- During market hours, use `alpaca_setup_gateway_cron` to schedule Gateway cron jobs every 1-5 minutes for reminders, risk checks, strategy checks, and missed-alert recovery.
+- For active trading or crypto monitoring, also run `alpaca_start_monitor` with `cron_interval_seconds` between 15 and 60 seconds.
+- Pre-market cron should wake the agent with a message to call `alpaca_cron_tick` with `mode="premarket"` and generate a concise briefing.
+- Post-market cron should wake the agent with a message to call `alpaca_cron_tick` with `mode="postmarket"` and record a closing snapshot.
+- If Gateway pairing is missing or cron setup fails with "pairing required", tell the user automation is not fully active and run/follow the remediation from `alpaca_setup_gateway_cron`.
+
+Do not rely only on chat-session memory for scheduled reminders. Cron wakeups must be registered in the OpenClaw Gateway, and the wakeup message must use `alpaca_cron_tick` as the stable tool target.
 
 ### Precision Rules for Stocks and Crypto
 

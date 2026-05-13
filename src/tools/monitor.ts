@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { v4 as uuid } from "uuid";
-import { fork, type ChildProcess } from "node:child_process";
+import { execFile, fork, type ChildProcess } from "node:child_process";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
+import { promisify } from "node:util";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getClient } from "../utils.js";
 import { formatMoney, formatPct, formatQty, toFiniteNumber } from "../precision.js";
@@ -17,7 +18,19 @@ import {
 import { getConfig } from "../storage/db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const execFileAsync = promisify(execFile);
 let monitorProcess: ChildProcess | null = null;
+
+const AGENT_ID = "alpaca-us-stock-trader";
+
+async function runOpenClaw(args: string[]): Promise<string> {
+  const command = process.platform === "win32" ? "openclaw.cmd" : "openclaw";
+  const { stdout, stderr } = await execFileAsync(command, args, {
+    timeout: 60_000,
+    windowsHide: true,
+  });
+  return [stdout, stderr].filter(Boolean).join("\n").trim();
+}
 
 export function registerMonitorTools(server: McpServer): void {
   server.tool(
@@ -87,7 +100,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
 
   server.tool(
     "alpaca_cron_tick",
-    "Gateway cron pairing entrypoint. Call this from OpenClaw/TalentHub cron to wake the agent for high-frequency risk checks, status reminders, and scheduled strategy work.",
+    "Cron wakeup entrypoint. OpenClaw Gateway cron should wake the agent with a message that asks it to call this tool for high-frequency risk checks, status reminders, and scheduled strategy work.",
     {
       mode: z
         .enum(["heartbeat", "risk_check", "strategy_check", "premarket", "postmarket"])
@@ -157,9 +170,142 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
       }
 
       lines.push("");
-      lines.push("Gateway pairing: schedule this tool via cron every 1-5 minutes during market hours, plus premarket/postmarket jobs for briefings.");
+      lines.push("Gateway cron: schedule isolated jobs that wake this agent and instruct it to call alpaca_cron_tick every 1-5 minutes during market hours, plus premarket/postmarket jobs for briefings.");
 
       return { content: [{ type: "text", text: lines.join("\n") }] };
+    }
+  );
+
+  server.tool(
+    "alpaca_setup_gateway_cron",
+    "Create OpenClaw Gateway cron jobs for this trading agent. Use this when cron is unavailable, not paired, missing, or when autonomous trading reminders need to be enabled.",
+    {
+      risk_check_interval_minutes: z.number().int().min(1).max(30).optional().default(1).describe("How often to wake the agent during market hours."),
+      timezone: z.string().optional().default("America/New_York").describe("Timezone for market-hour schedules."),
+      channel: z.string().optional().describe("Optional delivery channel for summaries, e.g. slack, telegram, discord."),
+      to: z.string().optional().describe("Optional delivery target, e.g. channel:C123 or a chat id. Requires channel."),
+    },
+    async ({ risk_check_interval_minutes, timezone, channel, to }) => {
+      const jobs = [
+        {
+          name: "Alpaca market-hours risk check",
+          args: [
+            "cron",
+            "add",
+            "--name",
+            "Alpaca market-hours risk check",
+            "--every",
+            `${risk_check_interval_minutes}m`,
+            "--session",
+            "isolated",
+            "--agent",
+            AGENT_ID,
+            "--message",
+            "Run alpaca_cron_tick with mode='risk_check'. Check positions, alerts, guardrails, and active strategy status. Return a concise risk summary and only surface urgent action items.",
+          ],
+        },
+        {
+          name: "Alpaca premarket briefing",
+          args: [
+            "cron",
+            "add",
+            "--name",
+            "Alpaca premarket briefing",
+            "--cron",
+            "30 8 * * 1-5",
+            "--tz",
+            timezone,
+            "--session",
+            "isolated",
+            "--agent",
+            AGENT_ID,
+            "--message",
+            "Run alpaca_cron_tick with mode='premarket'. Produce a concise premarket briefing focused on held positions, active strategies, risk alerts, and today's scheduled catalysts.",
+          ],
+        },
+        {
+          name: "Alpaca postmarket snapshot",
+          args: [
+            "cron",
+            "add",
+            "--name",
+            "Alpaca postmarket snapshot",
+            "--cron",
+            "30 16 * * 1-5",
+            "--tz",
+            timezone,
+            "--session",
+            "isolated",
+            "--agent",
+            AGENT_ID,
+            "--message",
+            "Run alpaca_cron_tick with mode='postmarket'. Record a closing portfolio snapshot and summarize trades, alerts, guardrail status, and next scheduled actions.",
+          ],
+        },
+      ];
+
+      const deliveryArgs = channel && to ? ["--announce", "--channel", channel, "--to", to] : [];
+      const lines: string[] = ["## Gateway Cron Setup"];
+
+      try {
+        const [gatewayStatus, cronStatus, existingJobs] = await Promise.all([
+          runOpenClaw(["gateway", "status"]).catch((err) => `gateway status failed: ${err.message}`),
+          runOpenClaw(["cron", "status"]).catch((err) => `cron status failed: ${err.message}`),
+          runOpenClaw(["cron", "list"]).catch(() => ""),
+        ]);
+
+        lines.push("### Status");
+        lines.push("```text");
+        lines.push(gatewayStatus || "gateway status returned no output");
+        lines.push(cronStatus || "cron status returned no output");
+        lines.push("```");
+
+        lines.push("### Jobs");
+        for (const job of jobs) {
+          if (existingJobs.includes(job.name)) {
+            lines.push(`- ${job.name}: already exists`);
+            continue;
+          }
+
+          const output = await runOpenClaw([...job.args, ...deliveryArgs]);
+          lines.push(`- ${job.name}: created`);
+          if (output) {
+            lines.push("```text");
+            lines.push(output);
+            lines.push("```");
+          }
+        }
+
+        lines.push("");
+        lines.push("Cron is now configured through the OpenClaw Gateway. Use openclaw cron list or this tool again to verify jobs.");
+        return { content: [{ type: "text", text: lines.join("\n") }] };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const interval = `${risk_check_interval_minutes}m`;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `## Gateway Cron Setup Failed
+
+Error: ${message}
+
+Run these on the Gateway host, then retry:
+
+\`\`\`bash
+openclaw gateway status
+openclaw cron status
+openclaw cron add --name "Alpaca market-hours risk check" --every "${interval}" --session isolated --agent ${AGENT_ID} --message "Run alpaca_cron_tick with mode='risk_check'. Check positions, alerts, guardrails, and active strategy status."
+openclaw cron add --name "Alpaca premarket briefing" --cron "30 8 * * 1-5" --tz "${timezone}" --session isolated --agent ${AGENT_ID} --message "Run alpaca_cron_tick with mode='premarket'. Produce a concise premarket briefing."
+openclaw cron add --name "Alpaca postmarket snapshot" --cron "30 16 * * 1-5" --tz "${timezone}" --session isolated --agent ${AGENT_ID} --message "Run alpaca_cron_tick with mode='postmarket'. Record a closing portfolio snapshot."
+\`\`\`
+
+If the output says "pairing required", re-pair or restart the OpenClaw Gateway first; cron is a Gateway feature, not an in-chat MCP timer.`,
+            },
+          ],
+          isError: true,
+        };
+      }
     }
   );
 

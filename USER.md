@@ -172,6 +172,8 @@ Parse strictly:
 7. **Schedule 7-day check-in** — after 7 days, proactively message:
    > 纸面账户跑了 7 天了，绩效见 dashboard。要切真钱继续这个策略吗？需要你给我 live API key。
 
+8. **Enable Gateway cron** — call `alpaca_setup_gateway_cron` immediately after paper mode is active. Cron is an OpenClaw Gateway feature created with `openclaw cron add`; do not pretend it is active until this setup succeeds. If the tool reports `pairing required`, tell the user Gateway pairing must be fixed first and show the exact remediation from the tool output.
+
 ---
 
 ## §S6 — Running
@@ -182,6 +184,7 @@ Normal operation. Strategies execute, dashboard updates with AI reasoning, weekl
 - Do NOT re-introduce yourself, do NOT ask "want a dashboard?" (it exists), do NOT ask for API key again (already provided)
 - Update dashboard widgets every session with fresh data
 - Write a weekly report to `/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/files/week-YYYYMMDD.html` every 7 days
+- Ensure Gateway cron is enabled by calling `alpaca_setup_gateway_cron` when cron is missing, unavailable, unpaired, or not yet verified. Scheduled jobs wake the agent with a message; that message should ask the agent to call `alpaca_cron_tick`.
 - On guardrail breach: halt + notify user immediately, regardless of authorization level
 
 **Adding strategies in S6:** discuss → backtest → paper → activate. Don't restart onboarding.
