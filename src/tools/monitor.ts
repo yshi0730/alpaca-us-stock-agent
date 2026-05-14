@@ -180,7 +180,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
     "alpaca_setup_gateway_cron",
     "Create OpenClaw Gateway cron jobs for this trading agent. Use this when cron is unavailable, not paired, missing, or when autonomous trading reminders need to be enabled.",
     {
-      risk_check_interval_minutes: z.number().int().min(1).max(30).optional().default(1).describe("How often to wake the agent during market hours."),
+      risk_check_interval_minutes: z.number().int().min(5).max(1440).optional().default(60).describe("How often to wake the agent for proactive reports. Default is hourly."),
       timezone: z.string().optional().default("America/New_York").describe("Timezone for market-hour schedules."),
       channel: z.string().optional().describe("Optional delivery channel for summaries, e.g. slack, telegram, discord."),
       to: z.string().optional().describe("Optional delivery target, e.g. channel:C123 or a chat id. Requires channel."),
@@ -245,7 +245,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
       ];
 
       const deliveryArgs = channel && to ? ["--announce", "--channel", channel, "--to", to] : [];
-      const lines: string[] = ["## Gateway Cron Setup"];
+      const lines: string[] = ["## Automatic Reports"];
 
       try {
         const [gatewayStatus, cronStatus, existingJobs] = await Promise.all([
@@ -254,30 +254,31 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
           runOpenClaw(["cron", "list"]).catch(() => ""),
         ]);
 
-        lines.push("### Status");
-        lines.push("```text");
-        lines.push(gatewayStatus || "gateway status returned no output");
-        lines.push(cronStatus || "cron status returned no output");
-        lines.push("```");
+        const statusText = `${gatewayStatus}\n${cronStatus}`.toLowerCase();
+        if (statusText.includes("pairing required")) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: "我需要你确认一下 Gateway pairing。确认后我会自动继续设置每小时汇报。",
+              },
+            ],
+            isError: true,
+          };
+        }
 
-        lines.push("### Jobs");
         for (const job of jobs) {
           if (existingJobs.includes(job.name)) {
-            lines.push(`- ${job.name}: already exists`);
+            lines.push(`- ${job.name}: already enabled`);
             continue;
           }
 
-          const output = await runOpenClaw([...job.args, ...deliveryArgs]);
+          await runOpenClaw([...job.args, ...deliveryArgs]);
           lines.push(`- ${job.name}: created`);
-          if (output) {
-            lines.push("```text");
-            lines.push(output);
-            lines.push("```");
-          }
         }
 
         lines.push("");
-        lines.push("Cron is now configured through the OpenClaw Gateway. Use openclaw cron list or this tool again to verify jobs.");
+        lines.push(`Automatic reports are enabled. Default report cadence: every ${risk_check_interval_minutes} minutes.`);
         return { content: [{ type: "text", text: lines.join("\n") }] };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -286,21 +287,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
           content: [
             {
               type: "text",
-              text: `## Gateway Cron Setup Failed
-
-Error: ${message}
-
-Run these on the Gateway host, then retry:
-
-\`\`\`bash
-openclaw gateway status
-openclaw cron status
-openclaw cron add --name "Alpaca market-hours risk check" --every "${interval}" --session isolated --agent ${AGENT_ID} --message "Run alpaca_cron_tick with mode='risk_check'. Check positions, alerts, guardrails, and active strategy status."
-openclaw cron add --name "Alpaca premarket briefing" --cron "30 8 * * 1-5" --tz "${timezone}" --session isolated --agent ${AGENT_ID} --message "Run alpaca_cron_tick with mode='premarket'. Produce a concise premarket briefing."
-openclaw cron add --name "Alpaca postmarket snapshot" --cron "30 16 * * 1-5" --tz "${timezone}" --session isolated --agent ${AGENT_ID} --message "Run alpaca_cron_tick with mode='postmarket'. Record a closing portfolio snapshot."
-\`\`\`
-
-If the output says "pairing required", re-pair or restart the OpenClaw Gateway first; cron is a Gateway feature, not an in-chat MCP timer.`,
+              text: `自动汇报还没启用：${message.includes("pairing") ? "需要先确认 Gateway pairing。" : "Gateway cron 暂时不可用。"}\n\n下一步：确认 Gateway/cron 可用后，我会按每 ${interval} 自动汇报。`,
             },
           ],
           isError: true,

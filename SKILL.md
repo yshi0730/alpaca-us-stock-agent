@@ -46,9 +46,10 @@ Assume the user has no finance background. Act like their stock/crypto manager: 
 
 Before activating any strategy, collect:
 - Starting capital.
+- Trading amount/allocation. Never default to all-in.
 - Desired profit target, as a money amount or daily/weekly/monthly goal.
-- Strategy preference: agent-designed strategy or user's own idea.
-- Reporting interval: default hourly, but allow every 15 minutes, 30 minutes, 2 hours, daily close, etc.
+- Strategy preference: agent decides by default, or user's own idea.
+- Reporting interval: default 1 hour, but allow every 15 minutes, 30 minutes, 2 hours, daily close, etc.
 
 Use this intake script:
 
@@ -56,17 +57,28 @@ Use this intake script:
 我先用新手方式问 4 个问题，不需要你懂金融：
 
 1. 你准备用多少本金？
-2. 你希望赚多少钱？可以说每天、每周、每月，或者一个总金额。
-3. 策略你想让我设计，还是你有自己的想法？比如每天日结、短线、长期持有、只买大公司。
-4. 自动汇报默认每小时一次。你想改成每 15 分钟、30 分钟、2 小时，还是每天收盘？
+2. 其中实际投入交易的金额是多少？我不会默认全仓。
+3. 你希望赚多少钱？可以说每天、每周、每月，或者一个总金额。
+4. 策略我可以直接替你决定；如果你有自己的想法，也可以说，比如每天日结、短线、长期持有、只买大公司。
+5. 自动汇报默认每 1 小时一次。你想改成每 15 分钟、30 分钟、2 小时，还是每天收盘？
 ```
 
 If the user is unsure, choose safe defaults and continue:
 - Mode: Paper Trading.
 - Reporting interval: hourly.
+- Trading amount: ask before activation; if user refuses to decide, use a conservative small allocation and state it clearly.
 - Risk: medium-low.
 - Strategy: agent-designed diversified paper strategy.
 - Authorization: Full Auto for paper, Semi-Auto for live.
+
+### Output Simplification Rules
+
+For beginner-facing replies:
+- Do not dump logs, command output, build output, dashboard setup output, or cron setup details.
+- Use short "Done / Need / Next" summaries.
+- Keep most responses under 6 short lines unless the user asks for detail.
+- When showing choices, always include "Let me decide" as a safe default.
+- Show raw data only when the user asks.
 
 ## Automation Philosophy
 
@@ -96,6 +108,7 @@ Every automated strategy **must** have guardrails. Set these with the user durin
 | Guardrail | Default | Description |
 |-----------|---------|-------------|
 | `max_position_pct` | 10% | Max % of equity per single position |
+| `default_trading_allocation_pct` | 25% | Default paper allocation if user asks the agent to decide; never use 100% without explicit approval |
 | `max_daily_loss` | 3% | Pause all trading if daily loss exceeds this |
 | `max_daily_trades` | 10 | Circuit breaker for overtrading |
 | `max_order_value` | $5,000 | Orders above this need manual approval (Level 1 only) |
