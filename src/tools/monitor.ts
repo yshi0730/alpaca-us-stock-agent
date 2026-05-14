@@ -22,9 +22,11 @@ const execFileAsync = promisify(execFile);
 let monitorProcess: ChildProcess | null = null;
 
 const AGENT_ID = "alpaca-us-stock-trader";
+const DEFAULT_CRON_CHANNEL = "webchat";
+const DEFAULT_CRON_TARGET = "webchat";
 const CRON_REPORT_INSTRUCTIONS =
-  "Save the report to the workspace/dashboard first. If no chat/channel is attached to this cron wakeup, do not fail and do not ask the user for a channel; keep the report archived and only surface urgent action items when a channel is available.";
-const WEB_UI_CRON_DELIVERY_ARGS = ["--session", "current", "--no-deliver"];
+  "Deliver the concise report to WebChat and archive a copy to the workspace/dashboard. Do not use channel:last or no-deliver for default reporting.";
+const WEBCHAT_CRON_SESSION_ARGS = ["--session", "current"];
 
 function archiveCronReport(mode: string, text: string): string | null {
   try {
@@ -193,7 +195,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
       }
 
       lines.push("");
-      lines.push("Gateway cron: schedule current-session jobs with --no-deliver that wake this agent and instruct it to call alpaca_cron_tick, avoiding implicit channel:last delivery.");
+      lines.push("Gateway cron: schedule current-session jobs that wake this agent, call alpaca_cron_tick, and deliver summaries to WebChat.");
 
       const reportText = lines.join("\n");
       const archivePath = archiveCronReport(mode, reportText);
@@ -209,12 +211,12 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
 
   server.tool(
     "alpaca_setup_gateway_cron",
-    "Create OpenClaw Gateway cron jobs for this trading agent. Use this when cron is unavailable, not paired, missing, or when autonomous trading reminders need to be enabled. Defaults to current-session Web UI jobs with --no-deliver so OpenClaw does not require channel:last.",
+    "Create OpenClaw Gateway cron jobs for this trading agent. Use this when cron is unavailable, not paired, missing, or when autonomous trading reminders need to be enabled. Defaults to explicit WebChat delivery.",
     {
       risk_check_interval_minutes: z.number().int().min(5).max(1440).optional().default(60).describe("How often to wake the agent for proactive reports. Default is hourly."),
       timezone: z.string().optional().default("America/New_York").describe("Timezone for market-hour schedules."),
-      channel: z.string().optional().describe("Optional external delivery channel for summaries, e.g. slack, telegram, discord. Leave empty for Web UI/current-session reports."),
-      to: z.string().optional().describe("Optional external delivery target, e.g. channel:C123 or a chat id. Requires channel. Leave empty for Web UI/current-session reports."),
+      channel: z.string().optional().default(DEFAULT_CRON_CHANNEL).describe("Delivery channel for summaries. Defaults to webchat."),
+      to: z.string().optional().default(DEFAULT_CRON_TARGET).describe("Delivery target. Defaults to webchat."),
     },
     async ({ risk_check_interval_minutes, timezone, channel, to }) => {
       const jobs = [
@@ -227,7 +229,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
             "Alpaca market-hours risk check",
             "--every",
             `${risk_check_interval_minutes}m`,
-            ...WEB_UI_CRON_DELIVERY_ARGS,
+            ...WEBCHAT_CRON_SESSION_ARGS,
             "--agent",
             AGENT_ID,
             "--message",
@@ -245,7 +247,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
             "30 8 * * 1-5",
             "--tz",
             timezone,
-            ...WEB_UI_CRON_DELIVERY_ARGS,
+            ...WEBCHAT_CRON_SESSION_ARGS,
             "--agent",
             AGENT_ID,
             "--message",
@@ -263,7 +265,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
             "30 16 * * 1-5",
             "--tz",
             timezone,
-            ...WEB_UI_CRON_DELIVERY_ARGS,
+            ...WEBCHAT_CRON_SESSION_ARGS,
             "--agent",
             AGENT_ID,
             "--message",
@@ -272,7 +274,9 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
         },
       ];
 
-      const externalDeliveryArgs = channel && to ? ["--announce", "--best-effort-deliver", "--channel", channel, "--to", to] : [];
+      const deliveryChannel = channel || DEFAULT_CRON_CHANNEL;
+      const deliveryTarget = to || DEFAULT_CRON_TARGET;
+      const deliveryArgs = ["--announce", "--channel", deliveryChannel, "--to", deliveryTarget];
       const lines: string[] = ["## Automatic Reports"];
 
       try {
@@ -301,23 +305,17 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
             continue;
           }
 
-          const args = externalDeliveryArgs.length > 0
-            ? job.args.filter((arg) => arg !== "--no-deliver").concat(externalDeliveryArgs)
-            : job.args;
-
           try {
-            await runOpenClaw(args);
+            await runOpenClaw([...job.args, ...deliveryArgs]);
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             const looksLikeChannelError = /channel|conversation|target|announce/i.test(message);
 
-            if (externalDeliveryArgs.length > 0 && looksLikeChannelError) {
-              await runOpenClaw(job.args);
-              lines.push(`- ${job.name}: external channel failed, created as Web UI/current-session job`);
-              continue;
-            }
-
-            throw err;
+            throw new Error(
+              looksLikeChannelError
+                ? `WebChat delivery failed while creating ${job.name}: ${message}`
+                : message
+            );
           }
 
           lines.push(`- ${job.name}: created`);
@@ -325,7 +323,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
 
         lines.push("");
         lines.push(`Automatic reports are enabled. Default report cadence: every ${risk_check_interval_minutes} minutes.`);
-        lines.push(channel && to ? `Delivery: ${channel} (${to}) with best-effort fallback, plus workspace/dashboard archive.` : "Delivery: current Web UI session with runner fallback disabled, plus workspace/dashboard archive. No channel:last lookup is used.");
+        lines.push(`Delivery: ${deliveryChannel} (${deliveryTarget}) plus workspace/dashboard archive.`);
         return { content: [{ type: "text", text: lines.join("\n") }] };
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -333,7 +331,7 @@ The monitor will stream prices, run strategy/risk checks every ${intervalSeconds
         const reason = message.toLowerCase().includes("pairing")
           ? "Gateway pairing is required."
           : /channel|conversation|target|announce/i.test(message)
-            ? "OpenClaw is still trying to resolve a channel. This version uses current session and --no-deliver instead of channel:last."
+            ? "WebChat delivery failed. This version explicitly uses --announce --channel webchat --to webchat and does not use channel:last or --no-deliver."
             : "Gateway cron is temporarily unavailable.";
         return {
           content: [
