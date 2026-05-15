@@ -5,3 +5,6 @@ data/*.jsonl
 .env
 *.tsbuildinfo
 .tools/
+.venv-test/
+__pycache__/
+*.pyc
