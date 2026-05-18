@@ -36,27 +36,37 @@ python3 -m pip install -r dashboard/requirements.txt
 Python. `manifest.json` does not yet declare a Python bin/dep — the
 Python env is inherited from Layer 0.)
 
-## Setup — two commands, that's it
+## Setup — self-bootstrapping, two blocks
 
 The fragile 12-step infra sequence is proceduralized in `setup.sh`
-(idempotent — safe to re-run every session). The agent never hand-runs
-clone / pip / mkdir / tunnel-register / nohup.
+(idempotent). **Do NOT assume the platform delivered this `dashboard/`
+folder** — `manifest.json` `skills` is only a hint to the installer; if
+it didn't clone the repo, a bare `bash dashboard/setup.sh` fails with
+"no such file". Every block below self-bootstraps the code from GitHub
+first (cheap: shallow clone once, `git pull` after), so it works no
+matter what the installer did.
 
 1. **Bring-up (at §S3):**
    ```bash
-   bash dashboard/setup.sh
+   A="$HOME/.claw/_alpaca-agent-src"
+   [ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
+   bash "$A/dashboard/setup.sh"
    ```
-   Clones/pulls Layer 0, installs deps, copies the hub, registers the
-   device tunnel, starts hub + cloudflared only if not already running,
+   setup.sh then clones/pulls Layer 0, installs deps, copies the hub,
+   registers the tunnel, starts hub + cloudflared only if not running,
    renders the page. Prints a status block with the URL — relay it.
-   Re-running is harmless (no duplicate hubs / re-clones / double
-   tunnels). It will say `creds: NOT set` until step 2.
+   Re-running is harmless. Says `creds: NOT set` until step 2.
 
 2. **Connect the account (at §S5, after the user gives the key):**
    ```bash
-   bash dashboard/setup.sh creds <KEY> <SECRET> paper   # or: live
+   A="$HOME/.claw/_alpaca-agent-src"
+   [ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
+   bash "$A/dashboard/setup.sh" creds <KEY> <SECRET> paper   # or: live
    ```
    Writes creds to `agent_config` and re-renders the live page.
+
+(`$A` does not persist between separate shell invocations — keep the
+2 bootstrap lines in the same block every time.)
 
 URL to give the user:
 `https://device-<serial>.clawln.app/static/us-equity.html`
@@ -64,8 +74,16 @@ URL to give the user:
 ## Keeping it fresh
 
 `setup.sh` is the one-time / occasional bring-up. For the recurring
-refresh use the lighter primitive directly — `python3 dashboard/render.py`
-(no clone/pip, just re-reads data and rewrites the page):
+refresh use the lighter primitive (still self-bootstrapped):
+
+```bash
+A="$HOME/.claw/_alpaca-agent-src"
+[ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
+python3 "$A/dashboard/render.py"
+```
+
+No clone/pip beyond the bootstrap pull — just re-reads data and rewrites
+the page:
 
 - **Every session start** — fresh numbers when the user opens the page.
 - **On the Gateway cron during market hours** — page stays current even

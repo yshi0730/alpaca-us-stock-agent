@@ -165,7 +165,7 @@ High-frequency operating rules:
 - For active trading or crypto monitoring, also run `alpaca_start_monitor` with `cron_interval_seconds` between 15 and 60 seconds.
 - Pre-market cron should wake the agent with a message to call `alpaca_cron_tick` with `mode="premarket"` and generate a concise briefing.
 - Post-market cron should wake the agent with a message to call `alpaca_cron_tick` with `mode="postmarket"` and record a closing snapshot.
-- **Dashboard refresh**: on every `alpaca_cron_tick` (and after any trade/strategy change), re-run `python3 dashboard/render.py` so the fixed dashboard page stays current. It is cheap, never raises, and is the only way the page reflects new trades/P&L between sessions. See the **Dashboard** section.
+- **Dashboard refresh**: on every `alpaca_cron_tick` (and after any trade/strategy change), re-run the dashboard renderer so the page stays current. Use the bootstrap+render block from the **Dashboard → How to publish / refresh** section (never a bare `dashboard/render.py` path — the platform may not have delivered `dashboard/`). Cheap, never raises.
 - If Gateway pairing is missing or cron setup fails with "pairing required", tell the user automation is not fully active and run/follow the remediation from `alpaca_setup_gateway_cron`.
 - If cron setup or cron execution complains about missing channel/conversation/target, retry setup with explicit `channel="webchat"` and `to="webchat"` before telling the user anything.
 
@@ -406,35 +406,58 @@ point here.
   `https://device-<serial>.clawln.app/static/us-equity.html`.
   No second server, no second tunnel — it is a sub-page on Layer 0.
 
-### How to publish / refresh
+### Bootstrap — run this FIRST, do NOT assume the platform delivered `dashboard/`
 
-**Bring-up (idempotent, one command) — at §S3 and whenever infra may be
-missing:**
+`manifest.json` `skills` is for the platform installer. **Do not trust
+that it actually cloned this repo's `dashboard/` onto the device.** If
+it didn't, `bash dashboard/setup.sh` fails with "no such file" and you
+get stuck. So never invoke `dashboard/setup.sh` by a bare relative path.
+Every dashboard command below is prefixed with this idempotent
+self-bootstrap (cheap: shallow clone once, `git pull` after) that
+guarantees the code is present regardless of what the installer did:
 
 ```bash
-bash dashboard/setup.sh
+A="$HOME/.claw/_alpaca-agent-src"
+[ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
 ```
 
-Clones/pulls Layer 0, installs deps, copies the hub, registers the
-tunnel, starts hub + cloudflared only if not running, renders the page.
-Relay its printed status block (URL) to the user. Safe to re-run.
+`$A` does not survive between separate command runs (each tool call /
+cron tick is a fresh shell) — so include the 2 bootstrap lines in the
+SAME command block every time, then call `"$A/dashboard/..."`.
+
+### How to publish / refresh
+
+**Bring-up (at §S3 and whenever infra may be missing):**
+
+```bash
+A="$HOME/.claw/_alpaca-agent-src"
+[ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
+bash "$A/dashboard/setup.sh"
+```
+
+Bootstraps the code, then setup.sh clones/pulls Layer 0, installs deps,
+copies the hub, registers the tunnel, starts hub + cloudflared only if
+not running, renders the page. Relay its printed status block (URL).
 
 **Connect the account — at §S5, once the user gives the key:**
 
 ```bash
-bash dashboard/setup.sh creds <KEY> <SECRET> paper   # or: live
+A="$HOME/.claw/_alpaca-agent-src"
+[ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
+bash "$A/dashboard/setup.sh" creds <KEY> <SECRET> paper   # or: live
 ```
 
-**Recurring refresh — cron / every session / after a trade — use the
-lighter primitive directly (no clone/pip):**
+**Recurring refresh — cron / every session / after a trade:**
 
 ```bash
-python3 dashboard/render.py
+A="$HOME/.claw/_alpaca-agent-src"
+[ -d "$A/.git" ] && git -C "$A" pull -q 2>/dev/null || git clone -q --depth 1 https://github.com/yshi0730/alpaca-us-stock-agent "$A"
+python3 "$A/dashboard/render.py"
 ```
 
-All three never raise: missing creds / Alpaca down / render error all
-write a calm status page and exit 0 — they can never break your session.
-Do NOT hand-run the 12-step infra sequence yourself; `setup.sh` is it.
+All never raise: missing creds / Alpaca down / render error all write a
+calm status page and exit 0 — they can never break your session. Do NOT
+hand-run the 12-step infra sequence yourself; `setup.sh` is it.
 
 Do NOT build generic widgets, do NOT call `dashboard_update_widget`, do
 NOT hand-write HTML. The page is fixed; you only feed it data via the
