@@ -22,7 +22,7 @@ from alpaca_client import AlpacaClient
 import portfolio_metrics as M
 
 AGENT_ID = "alpaca-us-stock-trader"
-SKILL_VERSION = "alpaca-us-stock-skill v0.2.3"
+SKILL_VERSION = "alpaca-us-stock-agent v0.3.0"
 
 # guardrail defaults (mirror US-EQUITY-DASHBOARD-SCHEMA.md)
 _GUARDRAIL_DEFAULTS = {

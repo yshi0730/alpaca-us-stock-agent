@@ -1,5 +1,5 @@
 {
-  "name": "alpaca-us-stock-skill",
+  "name": "alpaca-us-stock-agent",
   "version": "0.1.0",
   "description": "Professional US stock trading skill for OpenClaw via Alpaca API",
   "type": "module",

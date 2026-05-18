@@ -39,7 +39,7 @@ Or configure interactively through the agent using `alpaca_configure`.
 Copy or symlink this folder into your OpenClaw workspace skills directory:
 
 ```bash
-ln -s /path/to/alpaca-us-stock-skill ~/.openclaw/skills/alpaca-us-stock
+ln -s /path/to/alpaca-us-stock-agent ~/.openclaw/skills/alpaca-us-stock
 ```
 
 ### 4. Use as standalone MCP Server
@@ -61,7 +61,7 @@ Add to your MCP settings:
   "mcpServers": {
     "alpaca-us-stock": {
       "command": "node",
-      "args": ["/path/to/alpaca-us-stock-skill/dist/index.js"],
+      "args": ["/path/to/alpaca-us-stock-agent/dist/index.js"],
       "env": {
         "ALPACA_API_KEY": "your-key",
         "ALPACA_API_SECRET": "your-secret",

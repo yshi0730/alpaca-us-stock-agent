@@ -129,7 +129,7 @@ KV-shaped, scoped by `agent_id`, categorized so the dashboard filters to `catego
 
 ---
 
-## Agent write contract (alpaca-us-stock-skill)
+## Agent write contract (alpaca-us-stock-agent)
 
 When we update the agent's SKILL.md / USER.md, it must do the following. The dashboard assumes these are honored.
 
