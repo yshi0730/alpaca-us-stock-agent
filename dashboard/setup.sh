@@ -15,7 +15,10 @@
 #   CLAW_HOME          default ~/.claw
 #   CLAW_SHARED_DB     default $CLAW_HOME/shared/shared.db
 #   CLAW_HUB_PUBLIC    default $CLAW_HOME/hub/public
-#   CLAW_DEVICE_SERIAL override device serial detection
+#   CLAW_DEVICE_SERIAL force the device id (else: /etc/claw/device-id, or
+#                      a generate-once UUID persisted to ~/.claw/device-id)
+#   CLAW_HUB_PORT      force the hub port (else: a free port picked once
+#                      and persisted to ~/.claw/hub-port; avoids :3000)
 
 set -euo pipefail
 
@@ -64,13 +67,63 @@ PY
 
 # ── setup subcommand: Layer 0 + Layer 1 infra (idempotent) ─────────
 cmd_setup() {
-  # 1. device serial (tunnel is keyed by it)
-  SERIAL="${CLAW_DEVICE_SERIAL:-$(cat /sys/class/dmi/id/product_serial 2>/dev/null || true)}"
-  if [ -z "$SERIAL" ]; then
-    echo "ERROR: device serial not found. Set CLAW_DEVICE_SERIAL." >&2
+  # 1. STABLE device identity — a portable UUID, generated once and
+  #    persisted. NOT the BIOS serial and NEVER machine-id. Rationale:
+  #    BIOS serial is unreadable/garbage on many mini-PC models, absent
+  #    on the cloud-preview VM, and anti-portable (would break the
+  #    cloud→device migration — the URL must follow the user). A
+  #    persisted UUID is stable across reboots/re-runs, identical logic
+  #    on every HW model and on cloud, and migrates by copying the file.
+  #    Resolution order (first hit wins):
+  #      CLAW_DEVICE_SERIAL env  >  /etc/claw/device-id (provisioned,
+  #      survives re-image)  >  ~/.claw/device-id (generate-once)
+  ID_FILE_SYS="/etc/claw/device-id"
+  ID_FILE="$CLAW/device-id"
+  if [ -n "${CLAW_DEVICE_SERIAL:-}" ]; then
+    SERIAL="$CLAW_DEVICE_SERIAL"
+  elif [ -s "$ID_FILE_SYS" ]; then
+    SERIAL="$(cat "$ID_FILE_SYS")"
+  elif [ -s "$ID_FILE" ]; then
+    SERIAL="$(cat "$ID_FILE")"
+  else
+    SERIAL="$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null || true)"
+    SERIAL="$(printf '%s' "$SERIAL" | tr -dc 'A-Za-z0-9' | cut -c1-12)"
+    [ -n "$SERIAL" ] || { echo "ERROR: could not generate a device id; set CLAW_DEVICE_SERIAL" >&2; exit 1; }
+    mkdir -p "$(dirname "$ID_FILE")"
+    printf '%s' "$SERIAL" > "$ID_FILE"
+    log "generated stable device id, persisted to $ID_FILE"
+  fi
+  # Normalize to the registration contract: exactly 12 alphanumerics,
+  # uppercase (the Worker enforces ^[A-Z0-9]{12}$).
+  SERIAL="$(printf '%s' "$SERIAL" | tr -dc 'A-Za-z0-9' | cut -c1-12 | tr 'a-z' 'A-Z')"
+  if ! printf '%s' "$SERIAL" | grep -qE '^[A-Z0-9]{12}$'; then
+    echo "ERROR: device id '$SERIAL' is not 12 alphanumerics. Set CLAW_DEVICE_SERIAL to a 12-char id." >&2
     exit 1
   fi
-  log "device serial: $SERIAL"
+  log "device id: $SERIAL"
+
+  # 1b. STABLE hub port. The OpenClaw Gateway already owns :3000, and the
+  #     tunnel ingress (set server-side at register time) must point at
+  #     whatever port the hub actually binds. Pick a free port once, then
+  #     persist it so the ingress stays correct across re-runs.
+  PORT_FILE="$CLAW/hub-port"
+  if [ -n "${CLAW_HUB_PORT:-}" ]; then
+    HUB_PORT="$CLAW_HUB_PORT"
+  elif [ -s "$PORT_FILE" ]; then
+    HUB_PORT="$(cat "$PORT_FILE")"
+  else
+    HUB_PORT=""
+    for p in 7330 7430 8930 9330 7331; do
+      if ! python3 -c "import socket,sys;s=socket.socket();s.settimeout(0.3);sys.exit(0 if s.connect_ex(('127.0.0.1',$p))==0 else 1)" 2>/dev/null; then
+        HUB_PORT="$p"; break
+      fi
+    done
+    [ -n "$HUB_PORT" ] || HUB_PORT=7330
+    mkdir -p "$(dirname "$PORT_FILE")"
+    printf '%s' "$HUB_PORT" > "$PORT_FILE"
+    log "selected hub port $HUB_PORT, persisted to $PORT_FILE"
+  fi
+  log "hub port: $HUB_PORT"
 
   # 2. Layer 0 source: clone or pull (offline-tolerant)
   if [ -d "$DASH_SKILL/.git" ]; then
@@ -91,11 +144,13 @@ cmd_setup() {
   cp -R "$DASH_SKILL/hub-app/." "$HUB/"
   log "hub-app installed at $HUB"
 
-  # 5. register device tunnel (server-side idempotent: same URL per serial;
-  #    offline-tolerant: reuse existing tunnel.json if the call fails)
+  # 5. register device tunnel. Sends the chosen hub port so the Worker
+  #    configures the tunnel ingress at http://localhost:$HUB_PORT.
+  #    Idempotent server-side (same id → same tunnel; recovers a
+  #    KV/Cloudflare desync). Offline-tolerant: reuse cached tunnel.json.
   if curl -fsS -X POST "$TUNNEL_API/devices/register" \
         -H "Content-Type: application/json" \
-        -d "{\"serial\":\"$SERIAL\"}" -o "$CLAW/config/tunnel.json" 2>/dev/null; then
+        -d "{\"serial\":\"$SERIAL\",\"port\":$HUB_PORT}" -o "$CLAW/config/tunnel.json" 2>/dev/null; then
     log "tunnel registered"
   elif [ -s "$CLAW/config/tunnel.json" ]; then
     log "WARN register call failed — reusing existing tunnel.json"
@@ -107,12 +162,12 @@ cmd_setup() {
   TOKEN=$(python3 -c "import json;print(json.load(open('$CLAW/config/tunnel.json')).get('tunnel_token',''))" 2>/dev/null || true)
   log "tunnel url: ${PUBLIC_URL:-<unknown>}"
 
-  # 6. hub: start only if not already serving (no duplicate uvicorn)
-  if curl -fsS "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
-    log "hub already running"
+  # 6. hub: start only if not already serving on our port (no dup uvicorn)
+  if curl -fsS "http://127.0.0.1:$HUB_PORT/api/health" >/dev/null 2>&1; then
+    log "hub already running on :$HUB_PORT"
   else
-    log "starting hub (uvicorn :3000)"
-    ( cd "$HUB" && nohup python3 -m uvicorn app:app --host 0.0.0.0 --port 3000 \
+    log "starting hub (uvicorn :$HUB_PORT)"
+    ( cd "$HUB" && nohup python3 -m uvicorn app:app --host 0.0.0.0 --port "$HUB_PORT" \
         > "$CLAW/hub.log" 2>&1 & disown )
     sleep 2
   fi
@@ -142,7 +197,7 @@ cmd_setup() {
 
 ──────── dashboard ready ────────
  URL    : ${PUBLIC_URL:-<tunnel pending>}/static/us-equity.html
- hub    : http://127.0.0.1:3000   (log: $CLAW/hub.log)
+ hub    : http://127.0.0.1:$HUB_PORT   (log: $CLAW/hub.log)
  db     : $SHARED_DB
  creds  : $CREDS
 ─────────────────────────────────
