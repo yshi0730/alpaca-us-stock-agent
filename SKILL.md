@@ -396,17 +396,16 @@ Key concepts to explain clearly when users encounter them:
 >   dashboard you run **THIS skill's `dashboard/setup.sh`** (and
 >   `render.py`). Always.
 > - **`claw-dashboard-skill@dashboard` — a DIFFERENT skill = Layer 0
->   infra only** (the hub server + cloudflare tunnel). Its `SKILL.md`
->   and `DASHBOARD-SETUP-GUIDE.md` describe a *generic widget* dashboard
->   for other agents. **Do NOT follow them. Do NOT build widgets. Do
->   NOT produce this agent's dashboard from anything in
->   claw-dashboard-skill.** The only thing taken from Layer 0 is the
->   hub+tunnel plumbing, and `dashboard/setup.sh` already handles that
->   internally — you never read claw-dashboard-skill's guide yourself.
+>   infra only** (a static-file hub server + cloudflare tunnel, nothing
+>   more). It has **no dashboard guide and no widgets** — its `SKILL.md`
+>   itself states there is nothing to build there. **Do NOT produce
+>   this agent's dashboard from anything in claw-dashboard-skill.** The
+>   only thing taken from Layer 0 is the hub+tunnel plumbing, and
+>   `dashboard/setup.sh` already handles that internally — you never
+>   touch claw-dashboard-skill by hand.
 >
-> If you are about to follow `claw-dashboard-skill/DASHBOARD-SETUP-GUIDE.md`
-> or register widgets: STOP — that is the bug. Run THIS skill's
-> `dashboard/setup.sh` instead.
+> If you find yourself building widgets or setting up the hub by hand:
+> STOP — that is the bug. Run THIS skill's `dashboard/setup.sh` instead.
 
 This agent has a **fixed, polished dashboard page** — NOT generic
 widgets. It is rendered by **this skill's** `dashboard/render.py` and
@@ -417,11 +416,12 @@ point here.
 ### Two layers (do not confuse)
 
 - **Layer 0 — claw-dashboard-skill** (generic, you do NOT modify it):
-  the device's ONE hub + ONE cloudflare tunnel. Set it up via its
-  `DASHBOARD-SETUP-GUIDE.md` (clone, copy hub-app to `~/.claw/hub/`,
-  init `~/.claw/shared/shared.db`, register the device tunnel, start
-  hub + cloudflared). Shared by every dashboard on the device. If any
-  dashboard already exists on this device, Layer 0 is up — do not redo.
+  the device's ONE static-file hub + ONE cloudflare tunnel. You never
+  set this up by hand — `dashboard/setup.sh` brings it up internally
+  (clone, copy hub-app to `~/.claw/hub/`, register the device tunnel,
+  start hub + cloudflared). Shared by every dashboard on the device.
+  If any dashboard already exists on this device, Layer 0 is up — do
+  not redo.
 - **Layer 1 — this skill's `dashboard/`**: `render.py` reads live
   Alpaca + shared.db and writes `~/.claw/hub/public/us-equity.html`;
   Layer 0 serves it at
@@ -458,9 +458,8 @@ All three never raise: missing creds / Alpaca down / render error all
 write a calm status page and exit 0 — they can never break your session.
 Do NOT hand-run the 12-step infra sequence yourself; `setup.sh` is it.
 
-Do NOT build generic widgets, do NOT call `dashboard_update_widget`, do
-NOT hand-write HTML. The page is fixed; you only feed it data via the
-write contract below. Full column specs + CREATE statements:
+Do NOT build widgets and do NOT hand-write HTML. The page is fixed;
+you only feed it data via the write contract below. Full column specs + CREATE statements:
 `dashboard/SCHEMA.md`. Agent-facing guide: `dashboard/DASHBOARD.md`.
 
 ### Write contract — the dashboard is EMPTY without this

@@ -86,9 +86,9 @@ def main() -> int:
     if not DB_PATH.exists():
         out = _write(_shell(
             "未配置 · US Equity",
-            "<h1>仪表盘尚未初始化</h1><p>共享数据库还不存在。请先按 "
-            "<code>claw-dashboard-skill</code> 的 DASHBOARD-SETUP-GUIDE "
-            "把 hub + tunnel 搭好（Layer 0）。</p>",
+            "<h1>仪表盘尚未初始化</h1><p>共享数据库还不存在。请先运行 "
+            "<code>bash dashboard/setup.sh</code> 完成初始化"
+            "（它会自动搭好 Layer 0 hub + tunnel）。</p>",
         ))
         print(f"[render] no shared.db → wrote not-initialized page {out}")
         return 0

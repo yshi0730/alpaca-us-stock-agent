@@ -20,13 +20,12 @@ are different **paths** on that one hub, never competing servers. That is
 why this skill only writes a file into the hub's public dir.
 
 > ⛔ **The platform delivers both skill folders on the device.**
-> `claw-dashboard-skill` has its own `SKILL.md` /
-> `DASHBOARD-SETUP-GUIDE.md` describing a *generic widget* dashboard —
-> **that is NOT this agent's dashboard. Never build the dashboard from
-> claw-dashboard-skill's instructions or widgets.** This agent's
-> dashboard comes ONLY from THIS skill's `dashboard/setup.sh` +
-> `render.py`. The Layer 0 hub+tunnel is taken via `setup.sh` (which
-> handles it internally) — you never hand-follow Layer 0's guide.
+> `claw-dashboard-skill` is Layer 0 infra only — a static-file hub +
+> tunnel with **no dashboard guide and no widgets** (its own `SKILL.md`
+> says there is nothing to build there). **This agent's dashboard comes
+> ONLY from THIS skill's `dashboard/setup.sh` + `render.py`.** The
+> Layer 0 hub+tunnel is taken via `setup.sh` (which handles it
+> internally) — you never touch claw-dashboard-skill by hand.
 
 ## Python prerequisites
 
