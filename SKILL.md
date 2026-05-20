@@ -165,7 +165,7 @@ High-frequency operating rules:
 - For active trading or crypto monitoring, also run `alpaca_start_monitor` with `cron_interval_seconds` between 15 and 60 seconds.
 - Pre-market cron should wake the agent with a message to call `alpaca_cron_tick` with `mode="premarket"` and generate a concise briefing.
 - Post-market cron should wake the agent with a message to call `alpaca_cron_tick` with `mode="postmarket"` and record a closing snapshot.
-- **Dashboard refresh**: on every `alpaca_cron_tick` (and after any trade/strategy change), re-run `python3 dashboard/render.py` so the fixed dashboard page stays current. It is cheap, never raises, and is the only way the page reflects new trades/P&L between sessions. See the **Dashboard** section.
+- **Dashboard refresh**: on every `alpaca_cron_tick` (and after any trade/strategy change), re-run `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/render.py` so the fixed dashboard page stays current. It is cheap, never raises, and is the only way the page reflects new trades/P&L between sessions. See the **Dashboard** section.
 - If Gateway pairing is missing or cron setup fails with "pairing required", tell the user automation is not fully active and run/follow the remediation from `alpaca_setup_gateway_cron`.
 - If cron setup or cron execution complains about missing channel/conversation/target, retry setup with explicit `channel="webchat"` and `to="webchat"` before telling the user anything.
 
@@ -435,7 +435,7 @@ missing. Always use the full skill path so you can't pick up
 `skills/dashboard/` (the generic Layer 0 skill) by mistake:**
 
 ```bash
-bash skills/alpaca-us-stock/dashboard/setup.sh
+bash /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/setup.sh
 ```
 
 Clones/pulls Layer 0, installs deps, copies the hub, registers the
@@ -445,14 +445,14 @@ Relay its printed status block (URL) to the user. Safe to re-run.
 **Connect the account — at §S5, once the user gives the key:**
 
 ```bash
-bash skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper   # or: live
+bash /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper   # or: live
 ```
 
 **Recurring refresh — cron / every session / after a trade — use the
 lighter primitive directly (no clone/pip):**
 
 ```bash
-python3 dashboard/render.py
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/render.py
 ```
 
 All three never raise: missing creds / Alpaca down / render error all
@@ -484,16 +484,16 @@ tables in `~/.claw/shared/shared.db` (tables auto-create on first write):
      write the DB row AND broadcast in one call.
    - **Open-ended events** (research, analysis, alerts, waiting):
      ```bash
-     python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level info|done|warn|error]
+     python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level info|done|warn|error]
      ```
      TAG ∈ `{SYSTEM, USER, AGENT, DECIDE, ORDER, FILL, HOLD, WARN, ERROR}`.
      Narrate freely. See "Research narration patterns" below for rhythm.
 
 1. **Strategy lifecycle (create / activate / pause / resume / stop)** →
    ```bash
-   python3 dashboard/strategy.py activate <id> --name "..." --template "..." \
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py activate <id> --name "..." --template "..." \
        --reason "..." [--params '<json>'] [--authorization-level 1]
-   python3 dashboard/strategy.py pause|resume|stop <id> --reason "..."
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py pause|resume|stop <id> --reason "..."
    ```
    Writes `strategy_state` AND broadcasts. **Do NOT** write
    `strategy_state` by hand SQL — it skips the broadcast and the
@@ -501,7 +501,7 @@ tables in `~/.claw/shared/shared.db` (tables auto-create on first write):
 
 2. **Place an order** →
    ```bash
-   python3 dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \
        --strategy <id> --reason "..." \
        [--type market|limit|stop|stop_limit] [--limit-price N] [...]
    ```
@@ -511,14 +511,14 @@ tables in `~/.claw/shared/shared.db` (tables auto-create on first write):
 
 3. **Fill backfill** →
    ```bash
-   python3 dashboard/fill.py <client_order_id>
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/fill.py <client_order_id>
    ```
    Polls Alpaca; on `filled` updates `trade_reasoning` + broadcasts
    FILL. Idempotent — safe to retry from cron.
 
 4. **HOLD decision** →
    ```bash
-   python3 dashboard/hold.py <SYMBOL> --strategy <id> --reason "..." [--ref-price N]
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/hold.py <SYMBOL> --strategy <id> --reason "..." [--ref-price N]
    ```
    Writes the reasoning-only `trade_reasoning` row AND broadcasts HOLD.
    These prove the AI is thinking even when not trading — write
@@ -531,23 +531,23 @@ These aren't enforced helpers — they're examples of *how to talk*:
 
 ```bash
 # News scan
-python3 dashboard/broadcast.py AGENT "搜索 Twitter \$NVDA 情绪 (24h)" --actor "[News]"
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT "搜索 Twitter \$NVDA 情绪 (24h)" --actor "[News]"
 # ... do the web_search ...
-python3 dashboard/broadcast.py AGENT "23 高赞看多 / 4 看空,~6:1 · 主要驱动是 GTC keynote" --actor "[News]" --level done
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT "23 高赞看多 / 4 看空,~6:1 · 主要驱动是 GTC keynote" --actor "[News]" --level done
 
 # Fundamentals deep-dive
-python3 dashboard/broadcast.py AGENT "拉取 NVDA Q1 收入 / 毛利 / 指引" --actor "[Fundamentals]"
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT "拉取 NVDA Q1 收入 / 毛利 / 指引" --actor "[Fundamentals]"
 # ... fetch + parse 10-Q ...
-python3 dashboard/broadcast.py AGENT "营收 \$26B (+87% YoY) · DC 毛利 78% · 指引上修" --actor "[Fundamentals]" --level done
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT "营收 \$26B (+87% YoY) · DC 毛利 78% · 指引上修" --actor "[Fundamentals]" --level done
 
 # Pre-market briefing (cron-driven)
-python3 dashboard/broadcast.py SYSTEM "盘前 8:30 ET · 准备生成每日简报" --actor ""
-python3 dashboard/broadcast.py AGENT "扫描隔夜新闻 · 重点关注持仓中的 7 支" --actor "[News]"
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py SYSTEM "盘前 8:30 ET · 准备生成每日简报" --actor ""
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT "扫描隔夜新闻 · 重点关注持仓中的 7 支" --actor "[News]"
 # ... do work ...
-python3 dashboard/broadcast.py AGENT "简报已生成,推送到 WebChat" --actor "[Report]" --level done
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT "简报已生成,推送到 WebChat" --actor "[Report]" --level done
 
 # Signal/anomaly detection
-python3 dashboard/broadcast.py WARN "TSLA 30d σ 跳到 2.4σ,接近熔断阈值" --actor "[Risk]" --level warn
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py WARN "TSLA 30d σ 跳到 2.4σ,接近熔断阈值" --actor "[Risk]" --level warn
 ```
 5. **P&L / positions change** → `UPDATE strategy_state SET
    pnl_cumulative, pnl_today, positions_count, last_action,

@@ -3,9 +3,9 @@ place_order + DECIDE/ORDER broadcasts into one call.
 
 Use this, NOT direct SQL + raw httpx. Pairs write-contract Rule 2 with
 its narrative. Fill backfill (Rule 3) is a separate helper —
-`python3 dashboard/fill.py <client_order_id>`.
+`python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/fill.py <client_order_id>`.
 
-    python3 dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \\
         --strategy <strategy_id> --reason "..." \\
         [--type market|limit|stop|stop_limit]   (default: market) \\
         [--limit-price 612.50] [--stop-price 580.00] \\
@@ -14,9 +14,9 @@ its narrative. Fill backfill (Rule 3) is a separate helper —
         [--action buy|sell|add|reduce|close]    (default: side; overrides for clearer feed labelling)
 
 Examples:
-    python3 dashboard/trade.py NVDA 5 buy --strategy mag7-momentum \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/trade.py NVDA 5 buy --strategy mag7-momentum \\
         --reason "50DMA 上穿 200DMA · 量能放大 1.8x · 动量入场"
-    python3 dashboard/trade.py META 3 sell --strategy mag7-momentum \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/trade.py META 3 sell --strategy mag7-momentum \\
         --type limit --limit-price 612.50 --action reduce \\
         --reason "触发利润止盈线 +18%,锁定收益"
 
@@ -87,7 +87,7 @@ def _read_creds() -> tuple[str, str, bool]:
     if not key or not sec:
         print(
             "error: Alpaca creds missing — run "
-            "`bash skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper` first",
+            "`bash /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper` first",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -194,7 +194,7 @@ def main() -> int:
     )
 
     print(f"cid={cid} broker={broker_id}")
-    print(f"next: when filled, run `python3 dashboard/fill.py {cid}` (rule 3 + FILL broadcast)")
+    print(f"next: when filled, run `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/fill.py {cid}` (rule 3 + FILL broadcast)")
     return 0
 
 

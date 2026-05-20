@@ -5,18 +5,18 @@ Rule 1 (`strategy_state` row) AND the matching `ai_broadcast` narration
 in a single call. The dashboard's Active Strategies panel and AI
 Broadcast panel will both update on the next render.
 
-    python3 dashboard/strategy.py activate <id> --name "..." --template "..." \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py activate <id> --name "..." --template "..." \\
         --reason "..." [--params '<json>'] [--authorization-level 1]
-    python3 dashboard/strategy.py pause   <id> --reason "..."
-    python3 dashboard/strategy.py resume  <id> --reason "..."
-    python3 dashboard/strategy.py stop    <id> --reason "..."
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py pause   <id> --reason "..."
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py resume  <id> --reason "..."
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py stop    <id> --reason "..."
 
 Examples:
-    python3 dashboard/strategy.py activate mag7-momentum \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py activate mag7-momentum \\
         --name "Mag7 Momentum Rotation" --template mag7-momentum \\
         --params '{"k":3,"hold_days":5}' \\
         --reason "SPY > 50DMA · VIX 17 · 适合做趋势"
-    python3 dashboard/strategy.py pause mag7-momentum \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py pause mag7-momentum \\
         --reason "日内 DD -2.8% · 接近熔断阈值,先停"
 """
 from __future__ import annotations

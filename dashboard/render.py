@@ -7,7 +7,7 @@ the renderer + data layer: it reads live Alpaca data + the shared.db
 annotation layer, fills the template, and writes the page into that
 public dir. The agent runs it on each session and on a cron.
 
-    python3 dashboard/render.py
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/render.py
       → writes  ~/.claw/hub/public/us-equity.html
       URL:      https://device-<serial>.clawln.app/static/us-equity.html
 
@@ -87,7 +87,7 @@ def main() -> int:
         out = _write(_shell(
             "未配置 · US Equity",
             "<h1>仪表盘尚未初始化</h1><p>共享数据库还不存在。请先运行 "
-            "<code>bash skills/alpaca-us-stock/dashboard/setup.sh</code> 完成初始化"
+            "<code>bash /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/setup.sh</code> 完成初始化"
             "（它会自动搭好 Layer 0 hub + tunnel）。</p>",
         ))
         print(f"[render] no shared.db → wrote not-initialized page {out}")

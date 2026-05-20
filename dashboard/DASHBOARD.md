@@ -52,7 +52,7 @@ clone / pip / mkdir / tunnel-register / nohup.
 
 1. **Bring-up (at §S3) — always full skill path so you don't grab `skills/dashboard/` by accident:**
    ```bash
-   bash skills/alpaca-us-stock/dashboard/setup.sh
+   bash /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/setup.sh
    ```
    Clones/pulls Layer 0, installs deps, copies the hub, registers the
    device tunnel, starts hub + cloudflared only if not already running,
@@ -62,7 +62,7 @@ clone / pip / mkdir / tunnel-register / nohup.
 
 2. **Connect the account (at §S5, after the user gives the key):**
    ```bash
-   bash skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper   # or: live
+   bash /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper   # or: live
    ```
    Writes creds to `agent_config` and re-renders the live page.
 
@@ -72,7 +72,7 @@ URL to give the user:
 ## Keeping it fresh
 
 `setup.sh` is the one-time / occasional bring-up. For the recurring
-refresh use the lighter primitive directly — `python3 dashboard/render.py`
+refresh use the lighter primitive directly — `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/render.py`
 (no clone/pip, just re-reads data and rewrites the page):
 
 - **Every session start** — fresh numbers when the user opens the page.
@@ -94,7 +94,7 @@ account view into "an AI that explains every decision".
 
 In short (highest-frequency rule first):
 - **every meaningful step → append to `ai_broadcast`** via
-  `python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]"`. This drives
+  `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py TAG "msg" --actor "[Foo]"`. This drives
   the top terminal panel — without it the page looks idle.
 - create/activate/pause a strategy → upsert `strategy_state`
 - place an order → set a `client_order_id` + write a `trade_reasoning`

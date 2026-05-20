@@ -155,7 +155,7 @@ the dashboard's read-side problem (LIMIT 40), not the agent's.
 Prefer the helper (validates `tag`/`level`, auto-creates the table):
 
 ```bash
-python3 dashboard/broadcast.py TAG MSG [--actor "[Foo]"] [--level info|done|warn|error]
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py TAG MSG [--actor "[Foo]"] [--level info|done|warn|error]
 ```
 
 Direct SQL is also fine when you're already in Python:
@@ -202,16 +202,16 @@ Two paths to write:
 - **Structured events (rules 1–4 below): use the helpers.** They write
   the DB row AND broadcast in one call — you cannot forget either.
 - **Open-ended events (research, analysis, alerts, idle):** use
-  `python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level …]`
+  `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level …]`
   directly. The agent narrates freely.
 
 When in doubt, broadcast. Silence makes the agent look dead.
 
 1. **On strategy create / activate / pause / resume / stop** →
    ```
-   python3 dashboard/strategy.py activate <id> --name "..." --template "..." \
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py activate <id> --name "..." --template "..." \
        --reason "..." [--params '<json>'] [--authorization-level 1]
-   python3 dashboard/strategy.py pause|resume|stop <id> --reason "..."
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py pause|resume|stop <id> --reason "..."
    ```
    Writes `strategy_state` AND broadcasts AGENT/WARN. **Do NOT** write
    `strategy_state` by hand SQL — it skips the broadcast and the
@@ -219,7 +219,7 @@ When in doubt, broadcast. Silence makes the agent look dead.
 
 2. **On order placement** →
    ```
-   python3 dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \
        --strategy <id> --reason "..." \
        [--type market|limit|stop|stop_limit] [--limit-price N] [...]
    ```
@@ -230,7 +230,7 @@ When in doubt, broadcast. Silence makes the agent look dead.
 
 3. **On fill** →
    ```
-   python3 dashboard/fill.py <client_order_id>
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/fill.py <client_order_id>
    ```
    Polls Alpaca; on `filled` updates `trade_reasoning` (executed_at,
    price) + writes FILL broadcast. Safe to call from cron — idempotent.
@@ -238,7 +238,7 @@ When in doubt, broadcast. Silence makes the agent look dead.
 
 4. **On HOLD decision** →
    ```
-   python3 dashboard/hold.py <SYMBOL> --strategy <id> --reason "..." [--ref-price N]
+   python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/hold.py <SYMBOL> --strategy <id> --reason "..." [--ref-price N]
    ```
    Writes the reasoning-only `trade_reasoning` row AND broadcasts HOLD.
    These prove the agent is thinking even when not trading — write

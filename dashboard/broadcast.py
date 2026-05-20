@@ -5,7 +5,7 @@ step (scan, decide, order, fill, HOLD, warn, error). The dashboard's
 top terminal panel re-renders from this table on the next render tick.
 
 Usage:
-    python3 dashboard/broadcast.py TAG  MSG  [--actor "[Foo]"] [--level info|done|warn|error]
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py TAG  MSG  [--actor "[Foo]"] [--level info|done|warn|error]
 
 Use this for **open-ended events** (research, analysis, alerts, idle).
 For **structured events** prefer the dedicated helpers — they write the
@@ -18,26 +18,26 @@ DB row AND broadcast in one call so you cannot forget either half:
 Examples (open-ended; for structured see the helpers above):
 
     # Research narration — announce → act → summarize
-    python3 dashboard/broadcast.py AGENT  "扫描 Twitter NVDA 情绪 (24h)"        --actor "[News]"
-    python3 dashboard/broadcast.py AGENT  "23 高赞看多 / 4 看空,~6:1"            --actor "[News]"        --level done
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "扫描 Twitter NVDA 情绪 (24h)"        --actor "[News]"
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "23 高赞看多 / 4 看空,~6:1"            --actor "[News]"        --level done
 
     # Universe scan
-    python3 dashboard/broadcast.py AGENT  "扫描 SP500 候选 (487 支)…"           --actor "[Screener]"
-    python3 dashboard/broadcast.py AGENT  "选出 12 支符合条件"                   --actor "[Screener]"    --level done
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "扫描 SP500 候选 (487 支)…"           --actor "[Screener]"
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "选出 12 支符合条件"                   --actor "[Screener]"    --level done
 
     # Risk / anomaly
-    python3 dashboard/broadcast.py WARN   "TSLA σ +2.4σ → 自动收紧止损 -1.8%"  --actor "[Risk]"        --level warn
-    python3 dashboard/broadcast.py ERROR  "API 调用超时,5s 后重试"              --actor "[System]"      --level error
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py WARN   "TSLA σ +2.4σ → 自动收紧止损 -1.8%"  --actor "[Risk]"        --level warn
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py ERROR  "API 调用超时,5s 后重试"              --actor "[System]"      --level error
 
     # System / idle
-    python3 dashboard/broadcast.py SYSTEM "market open · NYSE regular hours"   --actor ""
-    python3 dashboard/broadcast.py SYSTEM "next cron tick at 10:32 ET · idle"  --actor ""
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py SYSTEM "market open · NYSE regular hours"   --actor ""
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py SYSTEM "next cron tick at 10:32 ET · idle"  --actor ""
 
     # User-facing
-    python3 dashboard/broadcast.py USER   "user asked: 现在加仓 NVDA 合适吗"   --actor ""
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py USER   "user asked: 现在加仓 NVDA 合适吗"   --actor ""
 
     # Reporting
-    python3 dashboard/broadcast.py AGENT  "生成小时汇报 · 推送到 WebChat"       --actor "[Report]"      --level done
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "生成小时汇报 · 推送到 WebChat"       --actor "[Report]"      --level done
 
 TAG taxonomy (case-insensitive on input, stored uppercase):
     SYSTEM   — infra events the agent did NOT do (market open/close, latency, cron tick)

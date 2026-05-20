@@ -6,13 +6,13 @@ HOLDs prove the agent considered acting and chose not to. Without a
 HOLD record the dashboard looks idle even when the agent has been
 working hard. Pairs write-contract Rule 4 with its broadcast.
 
-    python3 dashboard/hold.py <SYMBOL> --strategy <strategy_id> \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/hold.py <SYMBOL> --strategy <strategy_id> \\
         --reason "..." [--ref-price 191.05]
 
 Examples:
-    python3 dashboard/hold.py AAPL --strategy mag7-momentum \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/hold.py AAPL --strategy mag7-momentum \\
         --reason "动量得分 0.62 略低于 0.7 入场阈值,继续持有"
-    python3 dashboard/hold.py TSLA --strategy mag7-momentum --ref-price 228.40 \\
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/hold.py TSLA --strategy mag7-momentum --ref-price 228.40 \\
         --reason "波动率 2.4σ 触发,等回到 <2σ 再考虑加仓"
 """
 from __future__ import annotations

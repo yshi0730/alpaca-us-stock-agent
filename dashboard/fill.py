@@ -4,7 +4,7 @@ matching trade_reasoning row, and broadcasts FILL (or ERROR).
 Pairs write-contract Rule 3 with its broadcast. Safe to call repeatedly;
 idempotent — re-running on an already-filled order is a no-op.
 
-    python3 dashboard/fill.py <client_order_id>
+    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/fill.py <client_order_id>
 
 Exit codes:
     0   filled — trade_reasoning backfilled, FILL broadcast written
