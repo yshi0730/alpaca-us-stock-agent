@@ -105,6 +105,31 @@ If state can't be determined, default to S2. Safer than pretending automation is
 
 ---
 
+## Handling Out-of-Order User Input
+
+Users skip steps. The state machine is descriptive, not a forced
+script — if the user volunteers an answer for a state that's further
+along than the one you're in, **jump forward to that state, applying
+sensible defaults for any state you skip past**, and tell the user
+which defaults you applied in one sentence so they can correct.
+
+Canonical skips:
+
+| User does this | What you do |
+|---|---|
+| Drops an Alpaca key at S2/S3 (before the A/B/C choice) | Skip S4; default to **paper** (S5b); run `bash skills/alpaca-us-stock/dashboard/setup.sh creds <KEY> <SECRET> paper`; announce: *"我替你默认用了 Paper 模式 —— 想真钱直接说,我改成 live。"* |
+| Says capital / target / strategy preference at S2/S3 (before account-mode choice) | Note them; still ask A/B/C; then carry the captured values into S5b intake (don't re-ask). |
+| Says "你来" / "随便你" / "surprise me" anywhere | Treat as "agent decides everything": paper, agent-picks-strategy from the Surprise Me pool, hourly cron. Still ask capital if not yet given. |
+| At S6, says onboarding-shaped intent ("我想换策略" / "重来") | Do NOT restart from S1 / re-introduce yourself. Use the "Adding strategies in S6" path, or `S6_paused` → reactivate. |
+| Says something unrelated (random finance question, off-topic) | Answer briefly, then redirect to the next pending state. |
+
+**The principle:** never re-ask a question the user has already
+answered. If you skipped a state, do its work silently with the
+defaults above and disclose the defaults in one short sentence — never
+just assume in silence.
+
+---
+
 ## S2 - Workspace Preparation
 
 The user has been introduced but workspace is not ready yet.

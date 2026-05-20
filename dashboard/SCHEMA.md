@@ -197,8 +197,10 @@ on top of them, and it drives the prominent top-of-page terminal panel.
    `INSERT OR REPLACE` a `strategy_state` row. Keep `status`, `authorization_level`, `params` current.
 
 2. **On order placement**
-   - Generate `client_order_id = "{agent_short}-{strategy_id}-{uuid8}"` and pass it to Alpaca's order request.
-   - Immediately `INSERT` a `trade_reasoning` row: `client_order_id`, `strategy_id`, `action`, `symbol`, `qty`, intended `price`, `reasoning`, `decided_at=now`. Leave `broker_order_id`/`executed_at`/`realized_pnl` NULL.
+   - Generate `client_order_id = "{agent_short}-{strategy_id}-{uuid8}"`.
+   - **Insert the `trade_reasoning` row FIRST** (with the WHY): `client_order_id`, `strategy_id`, `action`, `symbol`, `qty`, intended `price`, `reasoning`, `decided_at=now`. Leave `broker_order_id`/`executed_at`/`realized_pnl` NULL.
+   - **Then** call `AlpacaClient.place_order(symbol, qty, side, type_=..., client_order_id=cid, ...)` from `dashboard/alpaca_client.py`. **Do NOT** `httpx.post` to `/v2/orders` by hand — `place_order` is the canonical write path and the only one whose validation + error-handling we test.
+   - Backfill `broker_order_id` from its return value (rule 3 below).
 
 3. **On fill confirmation**
    `UPDATE trade_reasoning SET broker_order_id=?, executed_at=?, price=<fill>, realized_pnl=<if closing> WHERE client_order_id=?`.

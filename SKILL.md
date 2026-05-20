@@ -489,10 +489,14 @@ tables in `~/.claw/shared/shared.db` (tables auto-create on first write):
    `name`, `template`, `status`, `authorization_level`, `params`,
    `last_action`, `last_action_at`).
 2. **Place an order** → generate
-   `client_order_id = "alpaca-{strategy_id}-{uuid8}"`, pass it to Alpaca,
-   and immediately `INSERT` a `trade_reasoning` row (`client_order_id`,
-   `strategy_id`, `action`, `symbol`, `qty`, intended `price`,
-   `reasoning`, `decided_at=now`).
+   `client_order_id = "alpaca-{strategy_id}-{uuid8}"`, **INSERT a
+   `trade_reasoning` row first** (`client_order_id`, `strategy_id`,
+   `action`, `symbol`, `qty`, intended `price`, `reasoning`,
+   `decided_at=now`), THEN call
+   `AlpacaClient.place_order(symbol, qty, side, type_=..., client_order_id=cid, ...)`
+   from `dashboard/alpaca_client.py`. **Do NOT** `httpx.post` to
+   `/v2/orders` by hand — `place_order` is the canonical write path
+   and ensures the reasoning row is matched on fill.
 3. **Fill confirmed** → `UPDATE trade_reasoning SET broker_order_id,
    executed_at, price=<fill>, realized_pnl=<if closing>
    WHERE client_order_id=?`.
