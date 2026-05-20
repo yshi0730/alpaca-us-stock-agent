@@ -121,7 +121,11 @@ See `SCHEMA.md` for exact columns, the broadcast TAG taxonomy, and SQL.
 | `us_equity_context.py` | assembles the template context (formatting, derivations) |
 | `alpaca_client.py` | read-only Alpaca REST wrapper |
 | `portfolio_metrics.py` | pure-stdlib Sharpe / beta / VaR / drawdown / etc. |
-| `broadcast.py` | agent helper — append one row to the AI Broadcast feed |
+| `broadcast.py` | open-ended-event helper — append one row to the AI Broadcast feed |
+| `strategy.py` | structured-event helper — write `strategy_state` + AGENT/WARN broadcast (Rule 1) |
+| `trade.py` | structured-event helper — `trade_reasoning` + `place_order` + DECIDE/ORDER broadcasts (Rule 2) |
+| `fill.py` | structured-event helper — poll Alpaca, backfill `trade_reasoning` + FILL broadcast (Rule 3) |
+| `hold.py` | structured-event helper — reasoning-only `trade_reasoning` + HOLD broadcast (Rule 4) |
 | `templates/us-equity-desk.html` | the Jinja page |
 | `SCHEMA.md` | shared.db tables (incl. `ai_broadcast`) + the agent write contract |
 | `_preview.py` | dev-only — renders the template with a fully-mocked ctx into `/tmp/alpaca-preview.html` for visual iteration |

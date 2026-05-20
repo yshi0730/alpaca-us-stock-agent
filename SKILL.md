@@ -470,40 +470,85 @@ automatically. But the **AI Broadcast / Active Strategies / Execution
 Feed / Guardrails** panels stay blank unless you write the annotation
 tables in `~/.claw/shared/shared.db` (tables auto-create on first write):
 
-0. **EVERY MEANINGFUL STEP — broadcast it.** Highest frequency rule.
-   The terminal panel at the top of the dashboard (the "AI Broadcast")
-   is empty until you write to `ai_broadcast`. Whenever you scan,
-   decide, order, fill, HOLD, warn, or error — append one row:
-   ```bash
-   python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level info|done|warn|error]
-   ```
-   TAG ∈ `{SYSTEM, USER, AGENT, DECIDE, ORDER, FILL, HOLD, WARN, ERROR}`.
-   This is what makes the dashboard *feel* like an AI working in real
-   time. Rules 1–7 below give the structured panels their data; rule 0
-   gives the page its narrative pulse. Be liberal: one row per action,
-   one row per decision (incl. "thinking about it" / "holding"). See
-   `dashboard/SCHEMA.md` → "Table 4 — ai_broadcast" for the taxonomy.
+0. **Broadcast = your live voice.** The dashboard's AI Broadcast panel
+   shows the user you working in real time. **Default to speaking, not
+   silence.** Broadcast-worthy: every **external I/O** (API / web /
+   data fetch), every **decision**, every **signal / anomaly / state
+   change**, every **research step** (scanning news, checking
+   sentiment, reading filings). Not broadcast-worthy: internal
+   formatting / JSON parsing / re-reading docs. **When in doubt,
+   broadcast.** Silence makes the agent look dead.
 
-1. **Create / activate / pause / stop a strategy** → `INSERT OR REPLACE`
-   a `strategy_state` row (`id`, `agent_id='alpaca-us-stock-trader'`,
-   `name`, `template`, `status`, `authorization_level`, `params`,
-   `last_action`, `last_action_at`).
-2. **Place an order** → generate
-   `client_order_id = "alpaca-{strategy_id}-{uuid8}"`, **INSERT a
-   `trade_reasoning` row first** (`client_order_id`, `strategy_id`,
-   `action`, `symbol`, `qty`, intended `price`, `reasoning`,
-   `decided_at=now`), THEN call
-   `AlpacaClient.place_order(symbol, qty, side, type_=..., client_order_id=cid, ...)`
-   from `dashboard/alpaca_client.py`. **Do NOT** `httpx.post` to
-   `/v2/orders` by hand — `place_order` is the canonical write path
-   and ensures the reasoning row is matched on fill.
-3. **Fill confirmed** → `UPDATE trade_reasoning SET broker_order_id,
-   executed_at, price=<fill>, realized_pnl=<if closing>
-   WHERE client_order_id=?`.
-4. **Decide to HOLD** (analysed, chose not to act) → `INSERT` a
-   `trade_reasoning` row, `action='hold'`, `qty=NULL`, `reasoning`,
-   `decided_at=now`, no order. This is what proves the AI is thinking
-   even when it does nothing — keep these.
+   Two write paths:
+   - **Structured events (rules 1–4)**: use the helpers below — they
+     write the DB row AND broadcast in one call.
+   - **Open-ended events** (research, analysis, alerts, waiting):
+     ```bash
+     python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level info|done|warn|error]
+     ```
+     TAG ∈ `{SYSTEM, USER, AGENT, DECIDE, ORDER, FILL, HOLD, WARN, ERROR}`.
+     Narrate freely. See "Research narration patterns" below for rhythm.
+
+1. **Strategy lifecycle (create / activate / pause / resume / stop)** →
+   ```bash
+   python3 dashboard/strategy.py activate <id> --name "..." --template "..." \
+       --reason "..." [--params '<json>'] [--authorization-level 1]
+   python3 dashboard/strategy.py pause|resume|stop <id> --reason "..."
+   ```
+   Writes `strategy_state` AND broadcasts. **Do NOT** write
+   `strategy_state` by hand SQL — it skips the broadcast and the
+   narrative goes silent.
+
+2. **Place an order** →
+   ```bash
+   python3 dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \
+       --strategy <id> --reason "..." \
+       [--type market|limit|stop|stop_limit] [--limit-price N] [...]
+   ```
+   Bundles `client_order_id` generation + `trade_reasoning` INSERT
+   (WHY) + `AlpacaClient.place_order` + DECIDE/ORDER broadcasts.
+   Prints `cid=…` for step 3.
+
+3. **Fill backfill** →
+   ```bash
+   python3 dashboard/fill.py <client_order_id>
+   ```
+   Polls Alpaca; on `filled` updates `trade_reasoning` + broadcasts
+   FILL. Idempotent — safe to retry from cron.
+
+4. **HOLD decision** →
+   ```bash
+   python3 dashboard/hold.py <SYMBOL> --strategy <id> --reason "..." [--ref-price N]
+   ```
+   Writes the reasoning-only `trade_reasoning` row AND broadcasts HOLD.
+   These prove the AI is thinking even when not trading — write
+   liberally.
+
+### Research narration patterns (rhythm examples)
+
+Same announce → act → summarize rhythm works for any open-ended work.
+These aren't enforced helpers — they're examples of *how to talk*:
+
+```bash
+# News scan
+python3 dashboard/broadcast.py AGENT "搜索 Twitter \$NVDA 情绪 (24h)" --actor "[News]"
+# ... do the web_search ...
+python3 dashboard/broadcast.py AGENT "23 高赞看多 / 4 看空,~6:1 · 主要驱动是 GTC keynote" --actor "[News]" --level done
+
+# Fundamentals deep-dive
+python3 dashboard/broadcast.py AGENT "拉取 NVDA Q1 收入 / 毛利 / 指引" --actor "[Fundamentals]"
+# ... fetch + parse 10-Q ...
+python3 dashboard/broadcast.py AGENT "营收 \$26B (+87% YoY) · DC 毛利 78% · 指引上修" --actor "[Fundamentals]" --level done
+
+# Pre-market briefing (cron-driven)
+python3 dashboard/broadcast.py SYSTEM "盘前 8:30 ET · 准备生成每日简报" --actor ""
+python3 dashboard/broadcast.py AGENT "扫描隔夜新闻 · 重点关注持仓中的 7 支" --actor "[News]"
+# ... do work ...
+python3 dashboard/broadcast.py AGENT "简报已生成,推送到 WebChat" --actor "[Report]" --level done
+
+# Signal/anomaly detection
+python3 dashboard/broadcast.py WARN "TSLA 30d σ 跳到 2.4σ,接近熔断阈值" --actor "[Risk]" --level warn
+```
 5. **P&L / positions change** → `UPDATE strategy_state SET
    pnl_cumulative, pnl_today, positions_count, last_action,
    last_action_at` for the affected strategy.

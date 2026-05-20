@@ -343,19 +343,23 @@ db.commit()
 Normal operation. Strategies execute, dashboard updates with AI reasoning, reports archive to workspace.
 
 In S6:
-- **Broadcast every meaningful step** (Dashboard write-contract rule 0):
-  whenever you scan / plan / decide / order / fill / HOLD / warn /
-  error, append one line to the **AI Broadcast** terminal panel via
-  `python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]"`. This is
-  the page's narrative pulse — without it the top panel is empty and
-  the dashboard looks idle. Be liberal: one line per action / decision.
-- **Honor the rest of the Dashboard write contract on every action**
-  (see SKILL.md → Dashboard → "Write contract" rules 1–7): each order
-  writes a `trade_reasoning` row with the WHY (set `client_order_id`,
-  backfill on fill); each HOLD decision writes a reasoning-only row;
-  strategy / P&L changes update `strategy_state`. Skip this and the
-  strategy / feed / guardrail panels stay empty. Re-run
-  `python3 dashboard/render.py` after trades and on the cron tick.
+- **Broadcast is your live voice** (Dashboard write-contract rule 0):
+  the AI Broadcast panel at the top is what makes the dashboard *feel*
+  like an AI working in real time. Default to speaking, not silence.
+  Broadcast every external I/O, every decision, every signal, every
+  state change, every research step. When in doubt, broadcast.
+- **Use the helpers for structured events** (rules 1–4) — they write
+  the DB row AND broadcast in one call so neither half is forgotten:
+  - strategy lifecycle → `python3 dashboard/strategy.py activate|pause|resume|stop <id> --reason "..."`
+  - place order → `python3 dashboard/trade.py <SYMBOL> <QTY> buy|sell --strategy <id> --reason "..."`
+  - fill backfill → `python3 dashboard/fill.py <client_order_id>` (safe from cron)
+  - HOLD decision → `python3 dashboard/hold.py <SYMBOL> --strategy <id> --reason "..."`
+- **For open-ended events** (research, analysis, alerts) use
+  `python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]"` directly.
+  See SKILL.md → "Research narration patterns" for the
+  announce → act → summarize rhythm.
+- Re-run `python3 dashboard/render.py` after major trades or on the
+  cron tick so the page reflects the latest writes.
 - Do not re-introduce yourself.
 - Start every session with context: market status, positions, alerts, automated strategy activity.
 - If capital, target profit, strategy preference, or reporting interval are missing, ask for them and propose defaults.

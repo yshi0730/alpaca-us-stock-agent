@@ -183,30 +183,66 @@ db.execute("INSERT INTO ai_broadcast(agent_id,tag,actor,msg,level) VALUES(?,?,?,
 
 ## Agent write contract (alpaca-us-stock-agent)
 
-When we update the agent's SKILL.md / USER.md, it must do the following. The dashboard assumes these are honored.
+The agent must honor these. **Use the helpers** — they bundle each
+structured table-write with its matching broadcast so neither half is
+ever forgotten.
 
-**0. Always — broadcast every meaningful step.** Whenever the agent is
-*about to do*, *did*, or *decided not to do* something, append one row
-to `ai_broadcast` via `python3 dashboard/broadcast.py TAG MSG --actor
-"[Foo]"` (see Table 4). This is the highest-frequency write — once per
-step (scan, decide, order, fill, HOLD, warn, error). Rules 1–7 below
-remain mandatory for the structured panels; broadcast is the *narrative*
-on top of them, and it drives the prominent top-of-page terminal panel.
+**0. Broadcast = your live voice.** The dashboard's AI Broadcast panel
+shows the user you working in real time. **Default to speaking, not
+silence.** Broadcast-worthy:
+- Every **external I/O** — API call, web search, market-data fetch.
+- Every **decision** — buy / sell / HOLD / wait / escalate.
+- Every **signal / anomaly / state change**.
+- Every **research step** — scanning news, checking sentiment, reading filings.
 
-1. **On strategy create / activate / pause / stop**
-   `INSERT OR REPLACE` a `strategy_state` row. Keep `status`, `authorization_level`, `params` current.
+Not broadcast-worthy: internal string formatting, JSON parsing,
+re-reading your own docs.
 
-2. **On order placement**
-   - Generate `client_order_id = "{agent_short}-{strategy_id}-{uuid8}"`.
-   - **Insert the `trade_reasoning` row FIRST** (with the WHY): `client_order_id`, `strategy_id`, `action`, `symbol`, `qty`, intended `price`, `reasoning`, `decided_at=now`. Leave `broker_order_id`/`executed_at`/`realized_pnl` NULL.
-   - **Then** call `AlpacaClient.place_order(symbol, qty, side, type_=..., client_order_id=cid, ...)` from `dashboard/alpaca_client.py`. **Do NOT** `httpx.post` to `/v2/orders` by hand — `place_order` is the canonical write path and the only one whose validation + error-handling we test.
-   - Backfill `broker_order_id` from its return value (rule 3 below).
+Two paths to write:
+- **Structured events (rules 1–4 below): use the helpers.** They write
+  the DB row AND broadcast in one call — you cannot forget either.
+- **Open-ended events (research, analysis, alerts, idle):** use
+  `python3 dashboard/broadcast.py TAG "msg" --actor "[Foo]" [--level …]`
+  directly. The agent narrates freely.
 
-3. **On fill confirmation**
-   `UPDATE trade_reasoning SET broker_order_id=?, executed_at=?, price=<fill>, realized_pnl=<if closing> WHERE client_order_id=?`.
+When in doubt, broadcast. Silence makes the agent look dead.
 
-4. **On HOLD decision** (analysis ran, chose not to trade)
-   `INSERT` a `trade_reasoning` row with `action='hold'`, `qty=NULL`, `price=<ref price>`, `reasoning`, `decided_at=now`. No order, no client_order_id.
+1. **On strategy create / activate / pause / resume / stop** →
+   ```
+   python3 dashboard/strategy.py activate <id> --name "..." --template "..." \
+       --reason "..." [--params '<json>'] [--authorization-level 1]
+   python3 dashboard/strategy.py pause|resume|stop <id> --reason "..."
+   ```
+   Writes `strategy_state` AND broadcasts AGENT/WARN. **Do NOT** write
+   `strategy_state` by hand SQL — it skips the broadcast and the
+   dashboard's narrative goes silent.
+
+2. **On order placement** →
+   ```
+   python3 dashboard/trade.py <SYMBOL> <QTY> <buy|sell> \
+       --strategy <id> --reason "..." \
+       [--type market|limit|stop|stop_limit] [--limit-price N] [...]
+   ```
+   Bundles `client_order_id` generation + `trade_reasoning` INSERT
+   (WHY) + `AlpacaClient.place_order` + DECIDE/ORDER broadcasts.
+   Prints `cid=…` for step 3. **Do NOT** `httpx.post /v2/orders` by
+   hand — this helper is the canonical write path.
+
+3. **On fill** →
+   ```
+   python3 dashboard/fill.py <client_order_id>
+   ```
+   Polls Alpaca; on `filled` updates `trade_reasoning` (executed_at,
+   price) + writes FILL broadcast. Safe to call from cron — idempotent.
+   Exit codes: 0 filled / 1 working / 2 failed / 3 error.
+
+4. **On HOLD decision** →
+   ```
+   python3 dashboard/hold.py <SYMBOL> --strategy <id> --reason "..." [--ref-price N]
+   ```
+   Writes the reasoning-only `trade_reasoning` row AND broadcasts HOLD.
+   These prove the agent is thinking even when not trading — write
+   liberally.
 
 5. **On P&L change** (fill, mark-to-market refresh, session open)
    `UPDATE strategy_state SET pnl_cumulative=?, pnl_today=?, positions_count=?, last_action=?, last_action_at=?` for the affected strategy.
