@@ -80,7 +80,7 @@ def main() -> int:
 
     broadcast_row(
         "HOLD",
-        f"{symbol}: {args.reason}",
+        f"{symbol} 暂不动 —— {args.reason}",
         actor=f"[{args.strategy}]",
     )
 

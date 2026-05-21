@@ -29,13 +29,14 @@ Even when not rebalancing, every weekday Morning Brief should broadcast
 the standings — this is the most visible "thinking" surface:
 
 ```bash
-# AGENT [Mag7Rotation] today's ranking refresh (~7 broadcast rows)
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "Mag7 4-week ranking: NVDA +14.2 / META +9.1 / AAPL +7.3 / MSFT +5.0 / GOOGL +3.8 / AMZN +1.2 / TSLA -2.4" \
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
+# Daily ranking refresh — single row, conversational
+python3 $P/broadcast.py AGENT \
+  "Mag7 4 周动量排了一下:NVDA 第一(+14.2),META 第二(+9.1),AAPL 紧跟(+7.3),后面是 MSFT / GOOGL / AMZN,TSLA 最弱(-2.4)" \
   --actor "[Mag7Rotation]"
-# On Friday: broadcast Monday rebalance preview
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "周一调仓预告:NVDA / META / AAPL 仍是 top 3,持仓不变" \
+# On Friday: Monday rebalance preview
+python3 $P/broadcast.py AGENT \
+  "周一调仓预告 —— NVDA / META / AAPL 仍是 top 3,持仓不动" \
   --actor "[Mag7Rotation]"
 ```
 

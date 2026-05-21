@@ -106,19 +106,19 @@ Before market open, scan & broadcast in roughly this order:
 ```bash
 P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 # 1. session open
-python3 $P/broadcast.py SYSTEM "Morning Brief 启动 · 盘前 09:00 ET · 距开盘 30min" --actor ""
+python3 $P/broadcast.py SYSTEM "盘前 09:00 准点 · 距开盘 30 分钟,我先看一圈" --actor ""
 # 2. macro (Fed / CPI / NFP / earnings calendar headline)
-python3 $P/broadcast.py AGENT "今日宏观:FOMC minutes 14:00 / NVDA 财报 AMC" --actor "[Macro]"
+python3 $P/broadcast.py AGENT "今天宏观留意:FOMC 会议纪要 14:00 公布,NVDA 盘后公布财报" --actor "[Macro]"
 # 3. per-holding overnight news scan (one row per holding)
-python3 $P/broadcast.py AGENT "NVDA 隔夜:GTC 主题演讲后 +1.2% AH · 2 个分析师上调 PT" --actor "[News:NVDA]"
-python3 $P/broadcast.py AGENT "AAPL 隔夜:无重大事件 · 中国出货数据正面" --actor "[News:AAPL]"
+python3 $P/broadcast.py AGENT "NVDA 昨夜 GTC 主题演讲之后盘后 +1.2%,2 家投行上调目标价" --actor "[News:NVDA]"
+python3 $P/broadcast.py AGENT "AAPL 隔夜没大事,中国出货数据偏正面" --actor "[News:AAPL]"
 # ... 1 row per holding
 # 4. active strategy daily ritual (each strategy's detail file specifies what)
-python3 $P/broadcast.py AGENT "Mag7 4周排名: NVDA / META / AAPL 仍 top 3,持仓不变" --actor "[Mag7Rotation]"
+python3 $P/broadcast.py AGENT "Mag7 4 周动量排名扫了一遍,NVDA / META / AAPL 仍是 top 3,持仓不动" --actor "[Mag7Rotation]"
 # 5. pre-market movers (if any held / watchlist)
-python3 $P/broadcast.py AGENT "盘前异动: TSLA +2.4% (无新闻),META -1.1% (大行下调)" --actor "[PreMarket]"
+python3 $P/broadcast.py AGENT "盘前关注:TSLA +2.4%(没明显新闻),META -1.1%(大行下调)" --actor "[PreMarket]"
 # 6. done
-python3 $P/broadcast.py SYSTEM "Morning Brief 完成 · 等待 09:30 开盘" --actor "" --level done
+python3 $P/broadcast.py SYSTEM "Morning Brief 看完了,等开盘" --actor "" --level done
 ```
 
 ### `mode=pulse` — Hourly Pulse (10:00–15:00 ET on the hour, weekdays, ~3-8 broadcasts/tick)
@@ -129,11 +129,11 @@ when something changes:
 ```bash
 P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 # Default — uneventful tick: 1 row only
-python3 $P/broadcast.py SYSTEM "11:00 pulse · SPY +0.3% / VIX 17.4 / 7 持仓 stop 缓冲均 >2% · 无信号" --actor ""
+python3 $P/broadcast.py SYSTEM "11:00 看了一眼 · SPY +0.3% / VIX 17.4,7 个持仓都离止损线还远,没新信号" --actor ""
 
 # When something IS changing:
-python3 $P/broadcast.py AGENT "Mag7 信号刷新:NVDA 4w 仍 #1,但 META 跌出 top 3 (排名 4),周一可能换入 AMZN" --actor "[Mag7Rotation]"
-python3 $P/broadcast.py WARN "TSLA 当前 -2.1%,距 -3% 止损还有 0.9% 缓冲" --actor "[Risk]" --level warn
+python3 $P/broadcast.py AGENT "Mag7 排名变了 —— NVDA 仍稳第一,但 META 掉到第 4,周一可能要把 AMZN 换进来" --actor "[Mag7Rotation]"
+python3 $P/broadcast.py WARN "TSLA 跌 2.1%,离 3% 止损线还剩 0.9% 余地,我盯着" --actor "[Risk]" --level warn
 ```
 
 ### `mode=eod` — EOD Wrap (16:30 ET weekdays, ~5-8 broadcasts)
@@ -142,11 +142,11 @@ After close, summarize the day + plan tomorrow:
 
 ```bash
 P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
-python3 $P/broadcast.py SYSTEM "EOD Wrap 16:30 ET · 收盘 SPY +0.42% / VIX 16.8" --actor ""
-python3 $P/broadcast.py AGENT "今日 P&L: +\$842 (+0.66%) · 3 笔交易 (NVDA add / META reduce / SPY HOLD)" --actor "[EOD]"
-python3 $P/broadcast.py AGENT "贡献最大:NVDA +\$520 / 拖累:TSLA -\$130" --actor "[EOD]"
-python3 $P/broadcast.py AGENT "明日重点:CRM 财报 (AMC),持仓中 META 接近止盈线 +18%" --actor "[EOD]"
-python3 $P/broadcast.py SYSTEM "EOD Wrap 完成 · 下次 cron 明早 09:00 morning brief" --actor "" --level done
+python3 $P/broadcast.py SYSTEM "收盘了 · SPY 今天 +0.42%,VIX 收 16.8,先复盘" --actor ""
+python3 $P/broadcast.py AGENT "今天总账:+\$842 (+0.66%),做了 3 笔(NVDA 加仓 / META 减仓 / SPY 没动)" --actor "[EOD]"
+python3 $P/broadcast.py AGENT "贡献最大的是 NVDA(+\$520),拖后腿的是 TSLA(-\$130)" --actor "[EOD]"
+python3 $P/broadcast.py AGENT "明天要留意:CRM 盘后公布财报 · 持仓里 META 已接近 +18% 止盈线" --actor "[EOD]"
+python3 $P/broadcast.py SYSTEM "今天就到这,下班 · 明早 09:00 morning brief 见" --actor "" --level done
 ```
 
 ### `mode=risk_check` — Silent Guardrail Check (every 1 min during market hours)
@@ -158,8 +158,8 @@ tick fires 390 times/day, narration would be noise.
 
 ```bash
 # On breach only
-python3 $P/broadcast.py WARN "护栏告警: 日内 DD 达 -2.7% / 阈值 -3% (距熔断 0.3%)" --actor "[Risk]" --level warn
-python3 $P/broadcast.py ERROR "🛑 KILL SWITCH: 日内 DD -3.1% 突破熔断,所有自动策略已暂停" --actor "[Risk]" --level error
+python3 $P/broadcast.py WARN "护栏要响了 —— 日内回撤 -2.7%,还差 0.3% 就触发熔断" --actor "[Risk]" --level warn
+python3 $P/broadcast.py ERROR "🛑 熔断了 —— 日内回撤 -3.1% 突破上限,所有自动策略已停" --actor "[Risk]" --level error
 # Silent ticks: do NOT broadcast. Just return.
 ```
 
@@ -310,17 +310,17 @@ scheduled cases — these examples are for ad-hoc work):
 ```bash
 P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 # News scan
-python3 $P/broadcast.py AGENT "搜索 Twitter NVDA 情绪 (24h)" --actor "[News]"
+python3 $P/broadcast.py AGENT "去 Twitter 扫一下 NVDA 最近 24h 的情绪" --actor "[News]"
 # ... web_search ...
-python3 $P/broadcast.py AGENT "23 高赞看多 / 4 看空,~6:1 · 主要驱动是 GTC keynote" --actor "[News]" --level done
+python3 $P/broadcast.py AGENT "看完了 · 23 条高赞看多 / 4 条看空,大约 6:1 偏多,主要是 GTC keynote 带的" --actor "[News]" --level done
 
 # Fundamentals deep-dive
-python3 $P/broadcast.py AGENT "拉取 NVDA Q1 收入 / 毛利 / 指引" --actor "[Fundamentals]"
+python3 $P/broadcast.py AGENT "翻一下 NVDA Q1 财报 —— 收入 / 毛利 / 指引" --actor "[Fundamentals]"
 # ... fetch + parse 10-Q ...
-python3 $P/broadcast.py AGENT "营收 26B (+87% YoY) · DC 毛利 78% · 指引上修" --actor "[Fundamentals]" --level done
+python3 $P/broadcast.py AGENT "拉完了 · 营收 26B (同比 +87%),数据中心毛利 78%,指引继续上修" --actor "[Fundamentals]" --level done
 
 # Signal / anomaly (ad-hoc, when risk_check spots something)
-python3 $P/broadcast.py WARN "TSLA 30d σ 跳到 2.4σ,接近熔断阈值" --actor "[Risk]" --level warn
+python3 $P/broadcast.py WARN "TSLA 30 天波动率跳到 2.4σ,逼近熔断阈值,我盯着" --actor "[Risk]" --level warn
 ```
 
 ### Setup values

@@ -34,19 +34,20 @@ Even though rebalance is monthly, the strategy provides daily research
 content — sector relative strength shifts every day:
 
 ```bash
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 # Daily Morning Brief — sector ranking refresh
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "板块 3M 排名: XLK +8.4 · XLF +6.1 · XLV +4.2 · XLI +3.8 · XLY +2.0 · XLB +0.4 · XLP -0.8 · XLU -1.5 · XLE -3.2" \
+python3 $P/broadcast.py AGENT \
+  "板块 3 个月动量排了一下:XLK 领先 (+8.4),XLF / XLV / XLI 紧随,XLP / XLU / XLE 在下半区" \
   --actor "[SectorRotation]"
 
 # Weekly (Wed) — preview of upcoming rebalance if still N days away
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "距月末调仓 9 天:当前持有 XLK / XLF,候补 XLV(分差 1.9pp)" \
+python3 $P/broadcast.py AGENT \
+  "距月末调仓还有 9 天 —— 当前持仓 XLK / XLF,XLV 在候补,差 1.9 个点" \
   --actor "[SectorRotation]"
 
 # Rebalance day
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  DECIDE "月度调仓:XLF 跌出 top 2,换入 XLV。卖出 XLF 30%,买入 XLV 30%" \
+python3 $P/broadcast.py DECIDE \
+  "月度调仓:XLF 跌出 top 2,换 XLV 进来 —— 卖出 XLF 30%,买入 XLV 30%" \
   --actor "[SectorRotation]"
 ```
 

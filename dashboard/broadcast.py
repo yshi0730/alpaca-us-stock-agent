@@ -15,29 +15,35 @@ DB row AND broadcast in one call so you cannot forget either half:
   - `dashboard/fill.py`  — Rule 3 (FILL backfill)
   - `dashboard/hold.py`  — Rule 4 (HOLD)
 
-Examples (open-ended; for structured see the helpers above):
+Voice rule: speak, don't log. Use Chinese verbs (准备 / 启动 / 看完了
+/ 成交了), wrap numbers in language, don't parade fields with `·`. See
+SOUL.md Core Value #7 for the full voice rules.
+
+Examples (open-ended; for structured events see the helpers above):
+
+    P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 
     # Research narration — announce → act → summarize
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "扫描 Twitter NVDA 情绪 (24h)"        --actor "[News]"
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "23 高赞看多 / 4 看空,~6:1"            --actor "[News]"        --level done
+    python3 $P/broadcast.py AGENT  "去 Twitter 扫一下 NVDA 最近 24h 的情绪"  --actor "[News]"
+    python3 $P/broadcast.py AGENT  "看完了 · 23 条高赞看多 / 4 条看空"        --actor "[News]"   --level done
 
     # Universe scan
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "扫描 SP500 候选 (487 支)…"           --actor "[Screener]"
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "选出 12 支符合条件"                   --actor "[Screener]"    --level done
+    python3 $P/broadcast.py AGENT  "扫一遍 SP500 候选 (487 支)"               --actor "[Screener]"
+    python3 $P/broadcast.py AGENT  "筛选完了,12 支符合条件"                   --actor "[Screener]" --level done
 
     # Risk / anomaly
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py WARN   "TSLA σ +2.4σ → 自动收紧止损 -1.8%"  --actor "[Risk]"        --level warn
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py ERROR  "API 调用超时,5s 后重试"              --actor "[System]"      --level error
+    python3 $P/broadcast.py WARN   "TSLA 波动率跳到 2.4σ,我先把止损线收到 -1.8%" --actor "[Risk]"   --level warn
+    python3 $P/broadcast.py ERROR  "Alpaca API 超时,5 秒后我再试一次"           --actor "[System]" --level error
 
     # System / idle
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py SYSTEM "market open · NYSE regular hours"   --actor ""
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py SYSTEM "next cron tick at 10:32 ET · idle"  --actor ""
+    python3 $P/broadcast.py SYSTEM "开盘了 · NYSE 常规交易开始"                --actor ""
+    python3 $P/broadcast.py SYSTEM "10:32 没事干,先眯一下,11:00 再看"          --actor ""
 
     # User-facing
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py USER   "user asked: 现在加仓 NVDA 合适吗"   --actor ""
+    python3 $P/broadcast.py USER   "用户问:现在加仓 NVDA 合适吗"               --actor ""
 
     # Reporting
-    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py AGENT  "生成小时汇报 · 推送到 WebChat"       --actor "[Report]"      --level done
+    python3 $P/broadcast.py AGENT  "小时汇报写完了,已经推到 WebChat"           --actor "[Report]"  --level done
 
 TAG taxonomy (case-insensitive on input, stored uppercase):
     SYSTEM   — infra events the agent did NOT do (market open/close, latency, cron tick)

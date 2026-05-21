@@ -31,21 +31,22 @@ For each name in the universe, **buy 10% of equity** when:
 Every weekday Morning Brief, scan all 10 names and broadcast:
 
 ```bash
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 # 1 row per name approaching threshold
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "AAPL RSI 34.2 (阈值 30,接近) · 价 $184.20 < 50DMA $189.10" \
+python3 $P/broadcast.py AGENT \
+  "AAPL RSI 跑到 34.2,逼近 30 的入场阈值;价 $184.20 已经在 50DMA 下面" \
   --actor "[QualityMR-Scan]"
 # summary row at the end
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "QualityMR 扫描完成:0 触发 / 3 接近阈值 / 7 中性" \
+python3 $P/broadcast.py AGENT \
+  "QualityMR 扫了一圈:0 个触发,3 个接近阈值,7 个中性" \
   --actor "[QualityMR-Scan]" --level done
 ```
 
 For HELD positions, also broadcast RSI progress toward exit threshold:
 
 ```bash
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "已持 MSFT (entry RSI 28),当前 RSI 41.5,接近 exit 50" \
+python3 $P/broadcast.py AGENT \
+  "持仓里 MSFT 当时入场 RSI 28,现在 41.5,差不多接近 50 的出场线了" \
   --actor "[QualityMR]"
 ```
 

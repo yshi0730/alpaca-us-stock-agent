@@ -84,7 +84,7 @@ def cmd_activate(args: argparse.Namespace) -> int:
     db.commit(); db.close()
     _broadcast(
         "AGENT",
-        f"激活策略 {args.name} ({args.template}): {args.reason}",
+        f"启动了 {args.name} 策略 —— {args.reason}",
         actor="[StrategyManager]",
         level="done",
     )
@@ -111,7 +111,7 @@ def cmd_pause(args: argparse.Namespace) -> int:
     db.commit(); db.close()
     _broadcast(
         "WARN",
-        f"暂停策略 {name}: {args.reason}",
+        f"先停了 {name} —— {args.reason}",
         actor="[StrategyManager]",
         level="warn",
     )
@@ -138,7 +138,7 @@ def cmd_resume(args: argparse.Namespace) -> int:
     db.commit(); db.close()
     _broadcast(
         "AGENT",
-        f"恢复策略 {name}: {args.reason}",
+        f"{name} 重新跑起来 —— {args.reason}",
         actor="[StrategyManager]",
         level="done",
     )
@@ -165,7 +165,7 @@ def cmd_stop(args: argparse.Namespace) -> int:
     db.commit(); db.close()
     _broadcast(
         "AGENT",
-        f"停止策略 {name}: {args.reason}",
+        f"{name} 已停止 —— {args.reason}",
         actor="[StrategyManager]",
     )
     print(f"⏹ stopped {args.id}")

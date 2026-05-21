@@ -123,6 +123,12 @@ def main() -> int:
     cid = f"alpaca-{args.strategy}-{uuid.uuid4().hex[:8]}"
     reasoning_id = uuid.uuid4().hex
 
+    # action verb in Chinese for the broadcast voice
+    action_zh = {
+        "buy": "买入", "add": "加仓",
+        "sell": "卖出", "reduce": "减仓", "close": "平仓",
+    }.get(action, action)
+
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(str(DB_PATH))
     db.executescript(INIT_SQL)
@@ -142,7 +148,7 @@ def main() -> int:
     # 2. DECIDE broadcast (narrative — the user sees the WHY in real time)
     broadcast_row(
         "DECIDE",
-        f"{action.upper()} {symbol} × {args.qty:g}: {args.reason}",
+        f"准备{action_zh} {symbol} {args.qty:g} —— {args.reason}",
         actor=f"[{args.strategy}]",
     )
 
@@ -164,7 +170,7 @@ def main() -> int:
     except AlpacaError as e:
         broadcast_row(
             "ERROR",
-            f"下单被拒 {symbol}: HTTP {e.status} · {e.body[:120]}",
+            f"{symbol} 下单失败 —— Alpaca 返回 HTTP {e.status}",
             actor="[Broker]",
             level="error",
         )
@@ -180,16 +186,16 @@ def main() -> int:
     )
     db.commit(); db.close()
 
-    # 5. ORDER broadcast
-    type_label = args.type_
-    px_label = ""
+    # 5. ORDER broadcast (the order is out the door)
     if args.limit_price is not None:
-        px_label = f" @ limit {args.limit_price:g}"
+        px_phrase = f"限价 {args.limit_price:g}"
     elif args.type_ == "market":
-        px_label = " @ market"
+        px_phrase = "市价"
+    else:
+        px_phrase = args.type_
     broadcast_row(
         "ORDER",
-        f"submitted {cid} · {symbol} {args.side} {args.qty:g}{px_label} ({type_label}, {args.time_in_force})",
+        f"单已发出 · {action_zh} {symbol} {args.qty:g},{px_phrase}",
         actor="[Trader]",
     )
 

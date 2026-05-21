@@ -31,17 +31,18 @@ Pulse should still broadcast VIX state — that's the visible "I'm
 watching for the regime":
 
 ```bash
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
 # Morning Brief — VIX state classification
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  AGENT "VIX 17.4 (低波动区,< 25 触发阈值) · SPY 5d 区间 +0.8% · 等待" \
+python3 $P/broadcast.py AGENT \
+  "VIX 看了眼 17.4,低波动区(还没到 25 触发线),SPY 这 5 天 +0.8%,没事干,等" \
   --actor "[VIXSpike]"
 # Hourly Pulse — only when VIX shifts state class
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  WARN "VIX 跳到 22.8 (+18% within 30min),逼近 25 触发线" \
+python3 $P/broadcast.py WARN \
+  "VIX 跳到 22.8(半小时内 +18%),离 25 触发线不远了" \
   --actor "[VIXSpike]" --level warn
 # Trigger
-python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py \
-  DECIDE "触发条件全满足:VIX 28.4 + SPY 2d -3.6%。买入 SPY 20% 仓位" \
+python3 $P/broadcast.py DECIDE \
+  "条件齐了 —— VIX 28.4 + SPY 两天 -3.6%,准备买入 SPY 20% 仓位" \
   --actor "[VIXSpike]"
 ```
 
