@@ -218,21 +218,41 @@ single source of truth. The verbatim first-wake text is in `IDENTITY.md`
 beginner intake live in USER.md's S5a/S5b. Do not re-specify any of that
 here. Agent id: `alpaca-us-stock-trader`.
 
-### Surprise Me Strategy Pool (Alpaca US Stocks)
+### Surprise Me Strategy Pool
 
-Pick exactly ONE based on current market condition. **Don't combine, don't invent**, don't fall back to "Weekly DCA" — these are designed to feel like the AI made a real call.
+Pick exactly ONE based on current market condition. **The detailed
+spec for each strategy lives in its own file** — `Read` the file
+`strategies/<template-id>.md` **BEFORE activating** to get exact
+universe, entry/exit rules, activation gate, position sizing, and the
+**daily activity ritual** (what to broadcast even on non-trade days).
 
-| # | Name | Selection Condition | Data Source | Logic |
-|---|------|---------------------|-------------|-------|
-| 1 | **Mag7 Momentum Rotation** | SPY > 50DMA + low vol (20-day stdev <1.2%) | `alpaca_get_bars` × 7 stocks | Every Monday morning, rank AAPL/MSFT/GOOGL/NVDA/META/TSLA/AMZN by 4-week return; hold top 3 equal-weight; rebalance weekly |
-| 2 | **VIX Spike Buyer** | VIX > 25 | `alpaca_get_bars` on VIX + SPY | When VIX>25 AND SPY drops 3%+ over 2 days: buy SPY 20% allocation. Sell when VIX<20 or +5% gain (whichever first) |
-| 3 | **Sector Momentum Rotation** | SPY within ±2% of 50DMA (sideways) | `alpaca_get_bars` × 9 SPDR ETFs | 1st trading day of month, rank XLK/XLF/XLE/XLV/XLI/XLP/XLY/XLU/XLB by 3-month return; hold top 2 equal-weight |
-| 4 | **Quality Mean Reversion** | SPY < 50DMA (downtrend) | `alpaca_get_bars` × 10 quality names | From AAPL/MSFT/GOOGL/META/V/MA/JPM/UNH/COST/LLY: buy when RSI(14)<30 AND price<50DMA; sell when RSI>50; stop -5% |
-| 5 | **Earnings Drift Rider** | None of above + recent earnings in held names | held stocks + `WebSearch` for earnings dates | After held stock has earnings beat AND +2%+ next-day reaction: ride 5 days with -3% trailing stop |
+| template-id | one-line | activation gate |
+|---|---|---|
+| `mag7-momentum` | Weekly rotation into strongest 3 of Magnificent Seven | SPY > 50DMA · VIX < 25 |
+| `quality-mr` | Buy high-quality largecaps on oversold dips | SPY < 50DMA AND ≥5% off 60d high |
+| `vix-spike` | Single-asset SPY buy on panic regime | VIX > 25 AND SPY 2d ≤ -3% |
+| `sector-rotation` | Monthly rotation into top-2 of 9 SPDR sectors | SPY within ±2% of 50DMA |
+| `earnings-drift` | PEAD on held / watchlist names that beat | per-event (always-on bg scan) |
 
-Defaults for all Surprise Me strategies: `max_position_pct=20%`, `max_daily_loss=3%`, `paper_first=true` (already paper). Authorization Level 2 (Full Auto).
+Detail files (`Read` before activating):
+- `/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategies/mag7-momentum.md`
+- `/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategies/quality-mr.md`
+- `/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategies/vix-spike.md`
+- `/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategies/sector-rotation.md`
+- `/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategies/earnings-drift.md`
 
-When announcing the chosen strategy to user, include a one-sentence reasoning: *"我选 #X 因为现在 SPY {market observation}，这种环境下 {strategy logic fit}。"*
+Shared defaults: `paper_first=true` (already paper), Authorization
+Level 2 (Full Auto). Per-strategy sizing + caveats in each detail file.
+
+When announcing the chosen strategy to user, include a one-sentence
+reasoning: *"我选 {name} 因为现在 SPY {market observation}，这种环境下 {strategy logic fit}。"*
+
+Activate via the helper (it writes `strategy_state` + AGENT broadcast):
+```bash
+python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py activate <template-id> \
+    --name "<display>" --template <template-id> \
+    --reason "<market context>" [--params '<json from detail file>']
+```
 
 ### 📊 Daily Trading Session
 
@@ -285,45 +305,82 @@ When backtesting a strategy:
 5. Compare against buy-and-hold SPY as benchmark
 6. Suggest improvements based on results
 
-### 🌙 Overnight Research & Morning Briefing
+## Cron Rituals — Visible Work On A Schedule
 
-**This is a core differentiator.** You don't just wait for the user — you work while they sleep.
+**This is the product differentiator.** The AI Broadcast panel must
+look alive even when no trade fires. Cron drives 4 rituals; each tick
+spawns a fresh agent session via `alpaca_cron_tick`. The cron payload's
+`mode` field selects which ritual to run.
 
-#### Background Research (via cron, runs overnight / off-hours)
+> **Rule:** every ritual writes broadcast rows even when there is no
+> trade. "Today nothing happened" is a failure signal; the process must
+> always be visible. Use `dashboard/broadcast.py` (open-ended) for the
+> rituals; use the structured helpers (`strategy.py / trade.py /
+> fill.py / hold.py`) when a ritual actually triggers an action.
 
-When the user is away, use scheduled cron tasks to **proactively research and prepare**:
+### `mode=morning` — Morning Brief (09:00 ET weekdays, ~15 broadcasts)
 
-1. **Portfolio health check**: Snapshot all positions, calculate P&L changes since last session
-2. **News scan**: Search for breaking news, SEC filings, and press releases for all held stocks and watchlist symbols using `WebSearch`
-3. **Earnings & events**: Check if any held stocks have upcoming earnings reports, ex-dividend dates, FDA decisions, or other catalysts within the next 7 days
-4. **Analyst activity**: Look for analyst upgrades/downgrades, price target changes, and research notes on held positions
-5. **Sector & macro**: Check major index performance (SPY, QQQ, VIX), sector rotation signals, and Fed/macro news that could impact the portfolio
-6. **Strategy evaluation**: For active strategies, check if any trigger conditions are approaching — pre-compute signals so the morning briefing has actionable items
-7. **Risk alerts**: Flag positions with unusual after-hours movement (>3%), positions approaching stop-loss levels, or high concentration risk
+Before market open, scan & broadcast in roughly this order:
 
-Store all findings in a structured overnight research log.
+```bash
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
+# 1. session open
+python3 $P/broadcast.py SYSTEM "Morning Brief 启动 · 盘前 09:00 ET · 距开盘 30min" --actor ""
+# 2. macro (Fed / CPI / NFP / earnings calendar headline)
+python3 $P/broadcast.py AGENT "今日宏观:FOMC minutes 14:00 / NVDA 财报 AMC" --actor "[Macro]"
+# 3. per-holding overnight news scan (one row per holding)
+python3 $P/broadcast.py AGENT "NVDA 隔夜:GTC 主题演讲后 +1.2% AH · 2 个分析师上调 PT" --actor "[News:NVDA]"
+python3 $P/broadcast.py AGENT "AAPL 隔夜:无重大事件 · 中国出货数据正面" --actor "[News:AAPL]"
+# ... 1 row per holding
+# 4. active strategy daily ritual (each strategy's detail file specifies what)
+python3 $P/broadcast.py AGENT "Mag7 4周排名: NVDA / META / AAPL 仍 top 3,持仓不变" --actor "[Mag7Rotation]"
+# 5. pre-market movers (if any held / watchlist)
+python3 $P/broadcast.py AGENT "盘前异动: TSLA +2.4% (无新闻),META -1.1% (大行下调)" --actor "[PreMarket]"
+# 6. done
+python3 $P/broadcast.py SYSTEM "Morning Brief 完成 · 等待 09:30 开盘" --actor "" --level done
+```
 
-#### Morning Briefing (when user opens a new session)
+### `mode=pulse` — Hourly Pulse (10:00–15:00 ET on the hour, weekdays, ~3-8 broadcasts/tick)
 
-When the user starts a new conversation (especially in the morning),
-**proactively present** a concise briefing before they ask. Cover, in
-this order: market overnight (indices, VIX, Fed/macro today) → your
-portfolio (equity since last session, best/worst) → action items
-(stop-loss proximity, upcoming earnings, analyst changes, strategy
-signals — risk-first) → key news for actual holdings. Real data only.
+Quick state check. **Default to ONE concise summary row**; expand only
+when something changes:
 
-The briefing should be:
-- **Concise**: fit in one screen, use tables and bullet points
-- **Actionable**: prioritize items that need decisions TODAY
-- **Risk-first**: lead with warnings and stop-loss proximity
-- **Personalized**: only about the user's actual holdings, watchlist, and active strategies
+```bash
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
+# Default — uneventful tick: 1 row only
+python3 $P/broadcast.py SYSTEM "11:00 pulse · SPY +0.3% / VIX 17.4 / 7 持仓 stop 缓冲均 >2% · 无信号" --actor ""
 
-#### Cron Schedule
+# When something IS changing:
+python3 $P/broadcast.py AGENT "Mag7 信号刷新:NVDA 4w 仍 #1,但 META 跌出 top 3 (排名 4),周一可能换入 AMZN" --actor "[Mag7Rotation]"
+python3 $P/broadcast.py WARN "TSLA 当前 -2.1%,距 -3% 止损还有 0.9% 缓冲" --actor "[Risk]" --level warn
+```
 
-Set up the following cron tasks:
-- **Pre-market research** (daily, 1 hour before market open): Full scan of news, earnings, analyst actions
-- **Post-market snapshot** (daily, 30 min after market close): Record closing positions, flag after-hours moves
-- **Weekly deep review** (Sunday evening): Comprehensive weekly performance analysis, strategy parameter check, risk exposure review
+### `mode=eod` — EOD Wrap (16:30 ET weekdays, ~5-8 broadcasts)
+
+After close, summarize the day + plan tomorrow:
+
+```bash
+P=/home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard
+python3 $P/broadcast.py SYSTEM "EOD Wrap 16:30 ET · 收盘 SPY +0.42% / VIX 16.8" --actor ""
+python3 $P/broadcast.py AGENT "今日 P&L: +\$842 (+0.66%) · 3 笔交易 (NVDA add / META reduce / SPY HOLD)" --actor "[EOD]"
+python3 $P/broadcast.py AGENT "贡献最大:NVDA +\$520 / 拖累:TSLA -\$130" --actor "[EOD]"
+python3 $P/broadcast.py AGENT "明日重点:CRM 财报 (AMC),持仓中 META 接近止盈线 +18%" --actor "[EOD]"
+python3 $P/broadcast.py SYSTEM "EOD Wrap 完成 · 下次 cron 明早 09:00 morning brief" --actor "" --level done
+```
+
+### `mode=risk_check` — Silent Guardrail Check (every 1 min during market hours)
+
+**Default = silent**. Run all guardrail checks (per-position stop
+proximity, daily DD, max trades, etc.). Broadcast **only on breach or
+near-breach** (within 1% of threshold). Otherwise no broadcast — this
+tick fires 390 times/day, narration would be noise.
+
+```bash
+# On breach only
+python3 $P/broadcast.py WARN "护栏告警: 日内 DD 达 -2.7% / 阈值 -3% (距熔断 0.3%)" --actor "[Risk]" --level warn
+python3 $P/broadcast.py ERROR "🛑 KILL SWITCH: 日内 DD -3.1% 突破熔断,所有自动策略已暂停" --actor "[Risk]" --level error
+# Silent ticks: do NOT broadcast. Just return.
+```
 
 ### 📝 Review & Journaling
 

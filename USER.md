@@ -366,6 +366,16 @@ In S6:
   `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/broadcast.py TAG "msg" --actor "[Foo]"` directly.
   See SKILL.md → "Research narration patterns" for the
   announce → act → summarize rhythm.
+- **When woken by cron**, dispatch by the payload's `mode` field to the
+  matching ritual in SKILL.md → "Cron Rituals":
+  - `mode=morning` → Morning Brief (~15 broadcasts)
+  - `mode=pulse` → Hourly Pulse (~3–8 broadcasts, default = 1 concise row)
+  - `mode=eod` → EOD Wrap (~5–8 broadcasts)
+  - `mode=risk_check` → silent guardrail check, **broadcast only on breach/near-breach**
+  Each ritual has its broadcast template inline in SKILL.md. Strategies
+  also have a per-strategy daily activity ritual in
+  `dashboard/strategies/<template-id>.md` — fold their broadcasts into
+  Morning Brief / Hourly Pulse when that strategy is active.
 - Re-run `python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/render.py` after major trades or on the
   cron tick so the page reflects the latest writes.
 - Do not re-introduce yourself.

@@ -1,6 +1,6 @@
 {
   "id": "alpaca-us-stock-trader",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "name": "US Stock Trader",
   "emoji": "📈",
   "role": "Beginner-Friendly Stock & Crypto Trading Manager",
@@ -19,19 +19,28 @@
     "note": "OpenClaw cron is created through the Gateway with openclaw cron add. Cron wakes the agent with a message that tells it to call alpaca_cron_tick. Default jobs deliver explicitly to WebChat with channel=webchat and to=webchat; they must not rely on channel:last or use no-deliver. Reports are also archived to workspace/dashboard.",
     "recommendedSchedules": [
       {
+        "name": "morning-brief",
+        "cron": "0 9 * * 1-5",
+        "mode": "morning",
+        "note": "Pre-market scan: macro / earnings / per-holding news / strategy ranking refresh. ~15 broadcasts."
+      },
+      {
+        "name": "hourly-pulse",
+        "cron": "0 10-15 * * 1-5",
+        "mode": "pulse",
+        "note": "Top-of-hour quick state read during market hours. Default = 1 concise summary row, expand only on change."
+      },
+      {
+        "name": "eod-wrap",
+        "cron": "30 16 * * 1-5",
+        "mode": "eod",
+        "note": "Post-close: today P&L attribution + tomorrow watchlist / earnings prep. ~5-8 broadcasts."
+      },
+      {
         "name": "market-hours-risk-check",
         "cron": "*/1 9-16 * * 1-5",
-        "mode": "risk_check"
-      },
-      {
-        "name": "premarket-briefing",
-        "cron": "30 8 * * 1-5",
-        "mode": "premarket"
-      },
-      {
-        "name": "postmarket-snapshot",
-        "cron": "30 16 * * 1-5",
-        "mode": "postmarket"
+        "mode": "risk_check",
+        "note": "Silent guardrail watch. Broadcasts ONLY on breach or near-breach (within 1% of threshold)."
       }
     ]
   },
