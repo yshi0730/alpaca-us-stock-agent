@@ -170,11 +170,17 @@
     background:linear-gradient(180deg,#13243f,#0e1a30);border-bottom:1px solid var(--line);
     font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;color:var(--muted)}
   .aib-buddy{display:inline-flex;align-items:center;gap:11px}
-  .buddy-face{display:inline-block;font-weight:700;color:#cfe1ff;font-size:13px;letter-spacing:0;
-    animation:buddy-bob 2.8s ease-in-out infinite;min-width:60px}
-  .buddy-status{color:#94a9c7;font-size:11px;letter-spacing:.06em;min-width:92px;
-    transition:opacity .3s ease}
-  @keyframes buddy-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+  .buddy-eye{display:inline-block;font-weight:700;color:var(--accent);font-size:12.5px;
+    letter-spacing:.5px;min-width:54px;line-height:1;font-family:'JetBrains Mono',ui-monospace,monospace;
+    text-shadow:0 0 6px color-mix(in srgb,var(--accent) 50%,transparent);
+    transition:color .28s ease, text-shadow .28s ease}
+  .buddy-eye.alert{color:var(--bad);
+    text-shadow:0 0 10px color-mix(in srgb,var(--bad) 65%,transparent)}
+  .buddy-face{display:inline-block;font-weight:700;color:var(--accent);font-size:13.5px;
+    letter-spacing:1.5px;min-width:80px;line-height:1;
+    text-shadow:0 0 6px color-mix(in srgb,var(--accent) 35%,transparent)}
+  .buddy-status{color:#a8bbd8;font-size:10px;letter-spacing:.22em;min-width:78px;font-weight:800;
+    text-transform:uppercase;transition:opacity .3s ease}
   .aib-live{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:10px;letter-spacing:.14em;color:var(--good)}
   .aib-pulse{width:7px;height:7px;border-radius:50%;background:var(--good);
     box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent);
@@ -288,8 +294,8 @@
       <div class="aib-frame">
         <header class="aib-bar">
           <div class="aib-buddy">
-            <span class="buddy-face" id="buddyFace">[◉‿◉]</span>
-            <span class="buddy-status" id="buddyStatus">看盘中…</span>
+            <span class="buddy-eye" id="buddyEye">[●    ]</span>
+            <span class="buddy-status" id="buddyStatus">WATCH</span>
           </div>
           <div class="aib-live"><span class="aib-pulse"></span>LIVE</div>
         </header>
@@ -315,31 +321,62 @@
       var b = document.getElementById('aibBody');
       if (b) b.scrollTop = b.scrollHeight;
 
-      // Buddy: cycle ASCII frames + rotate ambient status labels.
-      // Pure visual — not connected to any real broadcast data.
-      var face = document.getElementById('buddyFace');
+      // Trader-bot buddy: a slow Cylon-style scanner eye that
+      // occasionally pauses (as if "noticed something") + a terminal
+      // status code that rotates every 5.5s. Pure visual — not
+      // connected to any real broadcast data.
+      var eye    = document.getElementById('buddyEye');
       var status = document.getElementById('buddyStatus');
-      if (!face || !status) return;
+      if (!eye || !status) return;
 
-      var FRAMES_OPEN  = "[◉‿◉]";
-      var FRAMES_BLINK = "[ ‿ ]";
-      var FRAMES_LEFT  = "[◉‿ ◉]";
-      var FRAMES_RIGHT = "[◉ ‿◉]";
-      // Loop: open · open · open · blink · open · look-left · open · look-right
-      var frames = [FRAMES_OPEN, FRAMES_OPEN, FRAMES_OPEN, FRAMES_BLINK,
-                    FRAMES_OPEN, FRAMES_LEFT, FRAMES_OPEN, FRAMES_RIGHT];
-      var fi = 0;
+      // Scanner eye — 8 frames for a full back-and-forth cycle.
+      var eyeFrames = [
+        "[●    ]","[ ●   ]","[  ●  ]","[   ● ]",
+        "[    ●]","[   ● ]","[  ●  ]","[ ●   ]"
+      ];
+      var efi = 0;
+      function nextEye(){
+        eye.textContent = eyeFrames[efi++ % eyeFrames.length];
+        // ~15% of frames get a longer hold — "noticed something". Of
+        // those holds, ~30% turn red — "this one's concerning". So
+        // the eye is calmly scanning most of the time, occasionally
+        // pauses (still green), and rarely the pause flashes red.
+        var pause = Math.random() < 0.15;
+        var delay = pause ? 1200 : 400;
+        if (pause && Math.random() < 0.30) {
+          eye.classList.add('alert');
+          // Clear the alert slightly before the next sweep frame so
+          // the green sweep resumes cleanly. CSS handles the fade.
+          setTimeout(function(){ eye.classList.remove('alert'); }, delay - 50);
+        }
+        setTimeout(nextEye, delay);
+      }
+      nextEye();
+
+      // 7-frame wave that flows right-to-left (each frame is the same
+      // underlying wave rotated by one position).
+      var sparkFrames = [
+        "▁▃▄▇▆▄▂",
+        "▃▄▇▆▄▂▁",
+        "▄▇▆▄▂▁▃",
+        "▇▆▄▂▁▃▄",
+        "▆▄▂▁▃▄▇",
+        "▄▂▁▃▄▇▆",
+        "▂▁▃▄▇▆▄"
+      ];
+      var sfi = 0;
       setInterval(function(){
-        face.textContent = frames[fi++ % frames.length];
-      }, 1300);
+        face.textContent = sparkFrames[sfi++ % sparkFrames.length];
+      }, 280);
 
-      // Ambient status pool — rotate every ~5.5s.
-      // Time-of-day biased toward whatever feels right for the hour.
+      // Terminal-style status codes — English caps regardless of user
+      // locale (Bloomberg / Reuters convention: status codes are a
+      // visual vernacular, not user-facing prose). Time-of-day biased.
       var pools = {
-        premarket: ["盘前准备…","看新闻…","扫板中…","算指标…","看 VIX…"],
-        market:    ["看盘中…","研究中…","等信号…","扫板中…","算一算…","看新闻…","看 VIX…","看 SPY…","盯持仓…"],
-        eod:       ["复盘中…","整理日报…","盘后总结…","算 NAV…"],
-        offhours:  ["打盹中…","等开盘…","研究中…","看新闻…","看财报…"]
+        premarket: ["PREMKT","NEWS","SCAN","PREP","CALENDAR"],
+        market:    ["WATCH","CALC","SCAN","OBS","MONITOR","RANK","PARSE","TICK"],
+        eod:       ["EOD","RECAP","REPORT","ATTRIB"],
+        offhours:  ["IDLE","WAIT","STUDY","REVIEW"]
       };
       function pickPool(){
         var h = new Date().getHours();    // user's local hour (approx)
@@ -351,7 +388,6 @@
       function rotateStatus(){
         var pool = pickPool();
         var pick = pool[Math.floor(Math.random() * pool.length)];
-        // small fade to soften the swap
         status.style.opacity = "0.3";
         setTimeout(function(){
           status.textContent = pick;
