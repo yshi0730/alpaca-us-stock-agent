@@ -125,19 +125,48 @@ cmd_setup() {
   fi
   log "hub port: $HUB_PORT"
 
-  # 2. Layer 0 source: clone or pull (offline-tolerant)
-  if [ -d "$DASH_SKILL/.git" ]; then
-    log "updating claw-dashboard-skill"
-    git -C "$DASH_SKILL" pull --quiet || log "pull failed (offline?) — using existing checkout"
-  else
-    log "cloning claw-dashboard-skill"
-    git clone --quiet "$DASH_REPO" "$DASH_SKILL"
+  # 1c. FAST-PATH: if Layer 0 is already fully operational + tunnel
+  #     verified end-to-end, skip the heavy bring-up (clone / pip /
+  #     hub-app copy / register / start). The slow path was observed
+  #     to hang for ~4 minutes when git pull or pip install silently
+  #     stalled on a slow / flaky network; the fast path lets a
+  #     warm device be ready in ~2 seconds instead.
+  FAST_PATH=0
+  if [ -d "$DASH_SKILL/.git" ] \
+     && [ -s "$CLAW/config/tunnel.json" ] \
+     && curl -fsS --max-time 2 "http://127.0.0.1:$HUB_PORT/api/health" >/dev/null 2>&1 \
+     && pgrep -f "cloudflared tunnel run" >/dev/null 2>&1; then
+    PUBLIC_URL=$(python3 -c "import json;print(json.load(open('$CLAW/config/tunnel.json')).get('public_url',''))" 2>/dev/null || true)
+    if [ -n "$PUBLIC_URL" ] && curl -fsS --max-time 5 "${PUBLIC_URL}/api/health" >/dev/null 2>&1; then
+      log "✓ fast-path: Layer 0 already up + tunnel verified · skipping clone/pip/copy/register"
+      FAST_PATH=1
+      mkdir -p "$(dirname "$SHARED_DB")" "$PUBLIC"   # ensure render-target dirs
+    fi
   fi
 
-  # 3. python deps (Layer 0 hub + Layer 1 render)
-  log "installing python deps"
-  python3 -m pip install --quiet fastapi uvicorn jinja2 httpx || log "WARN Layer0 pip"
-  python3 -m pip install --quiet -r "$SCRIPT_DIR/requirements.txt" || log "WARN dashboard pip"
+  if [ "$FAST_PATH" = 0 ]; then
+
+  # 2. Layer 0 source: clone or pull (offline-tolerant, hard timeout
+  #    so a flaky / hanging network can't stall setup indefinitely).
+  if [ -d "$DASH_SKILL/.git" ]; then
+    log "updating claw-dashboard-skill (timeout 60s)"
+    timeout 60 git -C "$DASH_SKILL" pull --quiet || log "pull failed/timed out — using existing checkout"
+  else
+    log "cloning claw-dashboard-skill (timeout 90s)"
+    timeout 90 git clone --quiet "$DASH_REPO" "$DASH_SKILL" || { echo "ERROR: clone failed/timed out" >&2; exit 1; }
+  fi
+
+  # 3. python deps (Layer 0 hub + Layer 1 render). Skip pip entirely
+  #    when all four are already importable — saves ~10-30s on warm
+  #    re-runs and avoids the silent-pip-hang failure mode. Hard
+  #    timeout when we do need to install.
+  if python3 -c "import fastapi, uvicorn, jinja2, httpx" 2>/dev/null; then
+    log "python deps already importable · skipping pip install"
+  else
+    log "installing python deps (timeout 120s)"
+    timeout 120 python3 -m pip install --quiet fastapi uvicorn jinja2 httpx || log "WARN Layer0 pip failed/timed out"
+    timeout 120 python3 -m pip install --quiet -r "$SCRIPT_DIR/requirements.txt" || log "WARN dashboard pip"
+  fi
 
   # 4. dirs + hub-app (cp refreshes hub to the cloned version)
   mkdir -p "$HUB" "$CLAW/config" "$(dirname "$SHARED_DB")" "$PUBLIC"
@@ -204,6 +233,8 @@ cmd_setup() {
       log "WARN cloudflared missing or no token — page is local-only for now"
     fi
   fi
+
+  fi  # end FAST_PATH=0 branch (slow path: steps 2–7)
 
   # 8. first render (writes the placeholder/live page; safe without creds)
   log "rendering dashboard page"
