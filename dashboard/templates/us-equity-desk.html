@@ -231,38 +231,26 @@
     </div>
     <div class="nav-group">Trading</div>
     <nav class="nav">
-      <button class="active"><span class="ico">◐</span><span>Overview</span></button>
-      <button><span class="ico">⌃</span><span>Performance</span></button>
-      <button><span class="ico">≡</span><span>Holdings ({{ ctx.holdings.count }})</span></button>
-      <button><span class="ico">⚡</span><span>Execution Feed</span></button>
-      <button><span class="ico">⚠</span><span>Risk &amp; Guardrails</span></button>
+      <button class="active" data-target="sec-top"><span class="ico">◐</span><span>Overview</span></button>
+      <button data-target="sec-holdings"><span class="ico">≡</span><span>Holdings ({{ ctx.holdings.count }})</span></button>
+      <button data-target="sec-feed"><span class="ico">⚡</span><span>Execution Feed</span></button>
+      <button data-target="sec-risk"><span class="ico">⚠</span><span>Risk &amp; Guardrails</span></button>
     </nav>
     <div class="nav-group">Strategies</div>
     <nav class="nav">
       {% for s in ctx.strategies %}
-      <button><span class="ico">{{ '▶' if s.status_class == 'run' else '⏸' }}</span><span>{{ s.name }}</span></button>
+      <button data-target="sec-strategies"><span class="ico">{{ '▶' if s.status_class == 'run' else '⏸' }}</span><span>{{ s.name }}</span></button>
       {% endfor %}
     </nav>
     <div class="nav-group">Mode</div>
     <div class="auth-pill"><span class="dot"></span><span class="label">{{ ctx.meta.authorization_label }}</span><span class="mode">{{ ctx.meta.mode }}</span></div>
-    <div class="nav-group">Operations</div>
-    <nav class="nav">
-      <button><span class="ico">⌬</span><span>Alpaca Account</span></button>
-      <button><span class="ico">⚙</span><span>Strategy Lab</span></button>
-      <button><span class="ico">⌖</span><span>Audit Log</span></button>
-    </nav>
   </aside>
-  <main class="main">
+  <main class="main" id="sec-top">
     <div class="top">
       <div class="top-left">
         <div class="status"><span class="dot-live"></span><span>{{ ctx.meta.market_label }} · Latency <b>{{ ctx.meta.latency_ms }}ms</b></span></div>
         <div class="status"><span>Source: Cboe One · IEX</span></div>
         <div class="status"><span>Account: {{ 'Alpaca PAPER' if ctx.meta.is_paper else 'Alpaca LIVE' }} · #{{ ctx.meta.account_number }}</span></div>
-      </div>
-      <div class="controls">
-        <div class="seg" id="mode"><button data-mode="live" class="{{ 'active' if not ctx.meta.is_paper else '' }}">LIVE</button><button data-mode="paper" class="{{ 'active' if ctx.meta.is_paper else '' }}">PAPER</button></div>
-        <button class="chip danger" id="kill">⏹ KILL SWITCH</button>
-        <div class="seg" id="theme"><button data-theme="dark" class="active">Dark</button><button data-theme="light">Light</button></div>
       </div>
     </div>
 
@@ -444,7 +432,7 @@
         </div>
       </article>
 
-      <article class="card">
+      <article class="card" id="sec-strategies">
         <div class="section-head">
           <div class="section-title">在跑策略 · Active Strategies</div>
           <div class="section-sub">{{ ctx.strategies|selectattr('status_class','equalto','run')|list|length }} running · {{ ctx.strategies|selectattr('status_class','equalto','pause')|list|length }} paused</div>
@@ -465,7 +453,7 @@
     </section>
 
     <!-- Holdings -->
-    <article class="card" style="margin-top:12px">
+    <article class="card" id="sec-holdings" style="margin-top:12px">
       <div class="section-head">
         <div class="section-title">当前持仓 · Holdings ({{ ctx.holdings.count }})</div>
         <div class="section-sub">live mark-to-market · cost basis FIFO</div>
@@ -498,7 +486,7 @@
     </article>
 
     <!-- Execution feed -->
-    <article class="card" style="margin-top:12px">
+    <article class="card" id="sec-feed" style="margin-top:12px">
       <div class="section-head">
         <div class="section-title">实时执行流 · Execution Feed</div>
         <div class="section-sub">{{ ctx.meta.agent_id }} · 最近 {{ ctx.feed|length }} 条</div>
@@ -518,7 +506,7 @@
     </article>
 
     <!-- Risk + Guardrails -->
-    <div class="row-2">
+    <div class="row-2" id="sec-risk">
       <article class="card">
         <div class="section-head">
           <div class="section-title">风控驾驶舱 · Risk Cockpit</div>
@@ -559,19 +547,22 @@
 </div>
 
 <script>
-  // Theme + mode toggles only. NO fake number jitter — the real
-  // dashboard renders server-side per request with live data.
-  document.querySelectorAll("#theme button").forEach(b => b.onclick = () => {
-    document.documentElement.setAttribute("data-theme", b.dataset.theme);
-    document.querySelectorAll("#theme button").forEach(x => x.classList.toggle("active", x === b));
+  // Sidebar nav — scroll to in-page section. Only buttons with a
+  // data-target attribute act; visually-styled buttons without one
+  // were removed (Performance / Alpaca Account / Strategy Lab /
+  // Audit Log) because there is no corresponding section to scroll
+  // to on this single-page dashboard. Theme toggle / Live-Paper
+  // toggle / Kill Switch were also removed — they were stubs that
+  // confirmed dialogs but did nothing, and the actions they imply
+  // (mode switch, kill all) are necessarily agent-side, not
+  // client-side, on this static-file dashboard.
+  document.querySelectorAll(".nav button[data-target]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      var t = document.getElementById(btn.dataset.target);
+      if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelectorAll(".nav button").forEach(x => x.classList.toggle("active", x === btn));
+    });
   });
-  document.querySelectorAll("#mode button").forEach(b => b.onclick = () => {
-    document.querySelectorAll("#mode button").forEach(x => x.classList.toggle("active", x === b));
-  });
-  document.getElementById("kill").onclick = () => {
-    if (!confirm("KILL SWITCH 将立即清仓 US Equity Desk 所有持仓并暂停所有策略。确认？")) return;
-    alert("(stub) KILL SWITCH 信号已发送 — 实际熔断由 agent 侧执行");
-  };
 </script>
 </body>
 </html>
