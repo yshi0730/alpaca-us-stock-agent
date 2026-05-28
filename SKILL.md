@@ -238,12 +238,28 @@ tables in `~/.claw/shared/shared.db` (tables auto-create on first write):
 1. **Strategy lifecycle (create / activate / pause / resume / stop)** →
    ```bash
    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py activate <id> --name "..." --template "..." \
-       --reason "..." [--params '<json>'] [--authorization-level 1]
+       --reason "..." --params '{"universe": ["NVDA","AMD",...], ...}' [--authorization-level 1]
    python3 /home/storyclaw/.openclaw/workspace-alpaca-us-stock-trader/skills/alpaca-us-stock/dashboard/strategy.py pause|resume|stop <id> --reason "..."
    ```
    Writes `strategy_state` AND broadcasts. **Do NOT** write
    `strategy_state` by hand SQL — it skips the broadcast and the
    narrative goes silent.
+
+   **`--params` MUST include a `"universe": [TICKER, ...]` array** —
+   the explicit list of symbols this strategy is allowed to touch.
+   Built-in templates' universes are in `strategies/<id>.md`; for
+   user-custom strategies, build the list when translating the user's
+   idea into rules.
+
+   ⛔ **Before activating a NEW strategy while another is running**,
+   query `strategy_state` for active strategies, read each one's
+   `params.universe`, and compute the intersection with the new
+   strategy's universe. **If non-empty, STOP and surface the overlap
+   to the user** ("新策略 X 和已在跑的 Y 都包含 NVDA / AMD —— 两个策略
+   操作同一只股票会冲突(可能反向下单 / P&L 双重计算)。从一方剔除?
+   暂停其中一个?明知冲突也要跑?"). Only proceed after the user
+   resolves it explicitly. There is no execution-layer arbitrator —
+   prompt-level gating is the only protection.
 
 2. **Place an order** →
    ```bash
