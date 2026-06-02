@@ -135,7 +135,7 @@
   .feed-pnl{font-family:'JetBrains Mono',monospace;font-size:12px;text-align:right;font-weight:700;padding-top:3px}
   .risk{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px}
   .risk-cell{display:flex;flex-direction:column;gap:10px;
-    padding:16px;border:1px solid rgba(255,255,255,.07);border-radius:12px;
+    padding:14px;border:1px solid rgba(255,255,255,.07);border-radius:12px;
     background:linear-gradient(180deg,rgba(255,255,255,.045) 0%,rgba(255,255,255,0) 20%),
       linear-gradient(158deg,rgba(26,37,62,.55) 0%,rgba(13,20,36,.42) 100%);
     backdrop-filter:blur(16px);transition:all .2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
@@ -148,7 +148,7 @@
   .risk-main{display:flex;align-items:center;gap:16px;margin-top:6px;justify-content:space-between}
   .risk-value{font-size:18px;font-weight:800;color:var(--text);letter-spacing:-0.01em;font-variant-numeric:tabular-nums;white-space:nowrap;flex-shrink:0}
   .risk-value.good{color:var(--good)}
-  .risk-ring-wrap{position:relative;width:46px;height:46px;flex-shrink:0}
+  .risk-ring-wrap{position:relative;width:38px;height:38px;flex-shrink:0}
   .risk-ring-wrap svg{width:100%;height:100%;transform:rotate(-90deg);overflow:visible}
   .risk-ring-track{fill:none;stroke:rgba(52,227,160,.12);stroke-width:4}
   .risk-ring-prog{fill:none;stroke:url(#riskGrad);stroke-width:4;stroke-linecap:round;
@@ -156,7 +156,7 @@
   .risk-cell:hover .risk-ring-prog{filter:drop-shadow(0 0 8px rgba(52,227,160,.8))}
   .risk-ring-prog.neg{stroke:url(#riskGradNeg);filter:drop-shadow(0 0 5px rgba(143,141,255,.55))}
   .risk-cell:hover .risk-ring-prog.neg{filter:drop-shadow(0 0 8px rgba(143,141,255,.8))}
-  .risk-spark{flex:1;height:46px;min-width:0}
+  .risk-spark{flex:1;height:38px;min-width:0}
   .risk-spark svg{width:100%;height:100%;display:block;overflow:visible}
   .risk-spark-area{fill:url(#sparkFill)}
   .risk-spark-line{fill:none;stroke:url(#riskGrad);stroke-width:2;stroke-linejoin:round;stroke-linecap:round;
@@ -213,7 +213,7 @@
   .kpi-chart{display:none}
   .kpi-sep{display:none}
   .kpi-unit{display:none}
-  @media (max-width:1400px){.kpi-strip{grid-template-columns:repeat(5,1fr);gap:11px}.kpi-value{font-size:20px}}
+  @media (max-width:1100px){.kpi-strip{grid-template-columns:repeat(5,1fr);gap:11px}.kpi-value{font-size:20px}}
   @media (max-width:1024px){.kpi-strip{grid-template-columns:repeat(4,1fr);gap:10px}.kpi-card{padding:14px}.kpi-value{font-size:18px}.kpi-icon{width:32px;height:32px;font-size:16px}}
   @media (max-width:640px){.kpi-strip{grid-template-columns:repeat(2,1fr);gap:8px}.kpi-card{padding:12px}.kpi-value{font-size:16px}}
 
